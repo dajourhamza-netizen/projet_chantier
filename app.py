@@ -44,24 +44,25 @@ st.markdown("""
         padding-bottom: 2rem !important;
     }
 
-    /* Top Bar Wrapper */
-    .batiscript-topbar-wrapper {
-        background-color: #1c2237;
-        padding: 8px 20px;
-        border-radius: 8px;
-        margin-bottom: 25px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    /* Force the Topbar Columns block to be Dark Navy Header */
+    div[data-testid="stHorizontalBlock"]:has(div.topbar-flag) {
+        background-color: #1c2237 !important;
+        padding: 12px 20px !important;
+        border-radius: 10px !important;
+        margin-bottom: 25px !important;
+        align-items: center !important;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12) !important;
     }
 
     /* Style the selectbox inside topbar */
-    .batiscript-topbar-wrapper div[data-baseweb="select"] {
+    div[data-testid="stHorizontalBlock"]:has(div.topbar-flag) div[data-baseweb="select"] {
         background-color: #2a324b !important;
         border-radius: 6px !important;
         border: 1px solid #4a5568 !important;
     }
-    .batiscript-topbar-wrapper div[data-baseweb="select"] * {
+    div[data-testid="stHorizontalBlock"]:has(div.topbar-flag) div[data-baseweb="select"] * {
         color: #ffffff !important;
-        font-weight: 600 !important;
+        font-weight: 700 !important;
     }
 
     /* Sidebar Batiscript Light Style */
@@ -291,18 +292,19 @@ def save_to_excel_with_formatting(df_to_save, filepath, sheet_name="Chantier Pri
         return False, f"❌ Erreur : {e}"
 
 # ==========================================
-# 2. HEADER TOP BAR (CUSTOM BATISCRIPT STYLE)
+# 2. HEADER TOP BAR (DARK NAVY CONTAINER)
 # ==========================================
 chantiers_existants = get_sheet_names(chemin_excel_defaut)
 
-st.markdown('<div class="batiscript-topbar-wrapper">', unsafe_allow_html=True)
-col_tb1, col_tb2, col_tb3 = st.columns([2.5, 2.5, 2])
+col_tb1, col_tb2, col_tb3 = st.columns([3.2, 2.8, 2.5])
 
 with col_tb1:
     st.markdown('''
-    <div style="display: flex; align-items: center; gap: 12px; height: 100%; padding-top: 4px;">
+    <div style="display: flex; align-items: center; gap: 10px; padding-top: 4px;">
+        <div class="topbar-flag" style="display:none;"></div>
         <span style="font-size: 18px; font-weight: 900; color: #ffffff; letter-spacing: 1px;">🏢 BATISCRIPT</span>
-        <span style="font-size: 14px; color: #cbd5e0; font-weight: 700; border-left: 2px solid #4a5568; padding-left: 12px;">DAJOUR Hamza</span>
+        <span style="color: #4a5568; font-weight: bold;">|</span>
+        <span style="font-size: 13px; color: #38bdf8; font-weight: 700; background-color: #2a324b; padding: 4px 10px; border-radius: 6px; border: 1px solid #3b82f6;">👤 DAJOUR Hamza</span>
     </div>
     ''', unsafe_allow_html=True)
 
@@ -316,12 +318,12 @@ with col_tb2:
 
 with col_tb3:
     st.markdown('''
-    <div style="text-align: right; color: #ffffff; font-size: 13px; font-weight: 600; padding-top: 8px;">
-        👤 Responsable de Qualité ▼
+    <div style="text-align: right; padding-top: 4px;">
+        <span style="color: #ffffff; font-size: 13px; font-weight: 700; background-color: #2a324b; padding: 6px 12px; border-radius: 6px; border: 1px solid #4a5568;">
+            🏅 Responsable de Qualité
+        </span>
     </div>
     ''', unsafe_allow_html=True)
-
-st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
 # 3. SIDEBAR (NAVIGATION PAR NATURE)

@@ -32,55 +32,36 @@ st.markdown("""
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
-    /* Adjust Streamlit Top Header to prevent topbar clipping */
+    /* Adjust Streamlit Top Header */
     header[data-testid="stHeader"] {
         background-color: transparent !important;
         z-index: 1 !important;
     }
 
-    /* Container padding fixed so topbar is fully visible */
+    /* Container padding fixed */
     .block-container {
         padding-top: 3.5rem !important;
         padding-bottom: 2rem !important;
     }
 
-    /* Top Bar - Dark Navy Header */
-    .batiscript-topbar {
+    /* Top Bar Wrapper */
+    .batiscript-topbar-wrapper {
         background-color: #1c2237;
-        color: #ffffff;
-        padding: 14px 24px;
+        padding: 8px 20px;
         border-radius: 8px;
         margin-bottom: 25px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
     }
-    .topbar-brand {
-        font-size: 18px;
-        font-weight: 900;
-        letter-spacing: 1px;
-        color: #ffffff;
-        display: flex;
-        align-items: center;
-        gap: 10px;
+
+    /* Style the selectbox inside topbar */
+    .batiscript-topbar-wrapper div[data-baseweb="select"] {
+        background-color: #2a324b !important;
+        border-radius: 6px !important;
+        border: 1px solid #4a5568 !important;
     }
-    .topbar-nav {
-        display: flex;
-        gap: 20px;
-        font-size: 13px;
-        color: #a0aec0;
-        font-weight: 500;
-    }
-    .topbar-nav span {
-        cursor: pointer;
-        transition: color 0.2s;
-    }
-    .topbar-nav span.active {
-        color: #ffffff;
-        font-weight: 700;
-        border-bottom: 2px solid #5b58e6;
-        padding-bottom: 2px;
+    .batiscript-topbar-wrapper div[data-baseweb="select"] * {
+        color: #ffffff !important;
+        font-weight: 600 !important;
     }
 
     /* Sidebar Batiscript Light Style */
@@ -90,16 +71,6 @@ st.markdown("""
     }
     section[data-testid="stSidebar"] * {
         color: #2d3748 !important;
-    }
-
-    /* Custom Project Header Card in Sidebar */
-    .sidebar-project-card {
-        background-color: #ffffff;
-        border-radius: 10px;
-        padding: 12px;
-        border: 1px solid #e2e8f0;
-        margin-bottom: 15px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
     }
 
     /* Green Bottom Action Button Style */
@@ -115,35 +86,6 @@ st.markdown("""
     }
     .st-key-btn_validate > button:hover {
         background-color: #21a971 !important;
-    }
-
-    /* Action Buttons Top Right (+ Titre, + Tâche, + Note) */
-    .btn-action-purple {
-        background-color: #6b1d99;
-        color: white;
-        padding: 6px 16px;
-        border-radius: 6px;
-        font-weight: 700;
-        font-size: 13px;
-        display: inline-block;
-    }
-    .btn-action-blue {
-        background-color: #33b3ff;
-        color: white;
-        padding: 6px 16px;
-        border-radius: 6px;
-        font-weight: 700;
-        font-size: 13px;
-        display: inline-block;
-    }
-    .btn-action-green {
-        background-color: #26a69a;
-        color: white;
-        padding: 6px 16px;
-        border-radius: 6px;
-        font-weight: 700;
-        font-size: 13px;
-        display: inline-block;
     }
 
     /* Tabs Layout Style */
@@ -349,39 +291,43 @@ def save_to_excel_with_formatting(df_to_save, filepath, sheet_name="Chantier Pri
         return False, f"❌ Erreur : {e}"
 
 # ==========================================
-# 2. HEADER TOP BAR (BATISCRIPT STYLE)
-# ==========================================
-st.markdown("""
-<div class="batiscript-topbar">
-    <div class="topbar-brand">
-        🏢 BATISCRIPT
-    </div>
-    <div class="topbar-nav">
-        <span class="active">▲ Chantiers</span>
-        <span>📑 Referentiel</span>
-        <span>📋 Non-conformités</span>
-        <span>📊 Statistiques</span>
-    </div>
-    <div style="font-size: 13px; font-weight: 600;">
-        👤 Conducteur de Travaux ▼
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# ==========================================
-# 3. SIDEBAR (BATISCRIPT LIGHT NAVIGATION)
+# 2. HEADER TOP BAR (CUSTOM BATISCRIPT STYLE)
 # ==========================================
 chantiers_existants = get_sheet_names(chemin_excel_defaut)
 
-st.sidebar.markdown('<div class="sidebar-project-card">', unsafe_allow_html=True)
-st.sidebar.markdown("##### 🏢 **Sélection du Chantier**")
-chantier_actif = st.sidebar.selectbox("", options=chantiers_existants, label_visibility="collapsed")
-st.sidebar.markdown('</div>', unsafe_allow_html=True)
+st.markdown('<div class="batiscript-topbar-wrapper">', unsafe_allow_html=True)
+col_tb1, col_tb2, col_tb3 = st.columns([2.5, 2.5, 2])
 
-st.sidebar.markdown("---")
+with col_tb1:
+    st.markdown('''
+    <div style="display: flex; align-items: center; gap: 12px; height: 100%; padding-top: 4px;">
+        <span style="font-size: 18px; font-weight: 900; color: #ffffff; letter-spacing: 1px;">🏢 BATISCRIPT</span>
+        <span style="font-size: 14px; color: #cbd5e0; font-weight: 700; border-left: 2px solid #4a5568; padding-left: 12px;">DAJOUR Hamza</span>
+    </div>
+    ''', unsafe_allow_html=True)
+
+with col_tb2:
+    chantier_actif = st.selectbox(
+        "Sélection du Chantier",
+        options=chantiers_existants,
+        label_visibility="collapsed",
+        key="topbar_chantier_select"
+    )
+
+with col_tb3:
+    st.markdown('''
+    <div style="text-align: right; color: #ffffff; font-size: 13px; font-weight: 600; padding-top: 8px;">
+        👤 Responsable de Qualité ▼
+    </div>
+    ''', unsafe_allow_html=True)
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+# ==========================================
+# 3. SIDEBAR (NAVIGATION PAR NATURE)
+# ==========================================
 st.sidebar.markdown("📌 **NAVIGATION PAR NATURE DES TRAVAUX**")
 
-# Liste des natures de travaux pour la navigation
 liste_natures_nav = ["📌 Tous les travaux"] + list(LIAISONS.keys())
 nature_selectionnee_sidebar = st.sidebar.radio(
     "Filtrer par nature :",
@@ -427,20 +373,8 @@ if st.sidebar.button("✓ Valider le compte rendu", key="btn_validate", type="se
 # ==========================================
 # 4. INTERFACE PRINCIPALE (WORKSPACE)
 # ==========================================
-col_title, col_actions = st.columns([3, 2])
-
-with col_title:
-    st.markdown(f"## **Chantier : {chantier_actif}**")
-    st.markdown(f"<span style='color: #718096; font-weight: 500;'>Filtre actif : <b>{nature_selectionnee_sidebar}</b></span>", unsafe_allow_html=True)
-
-with col_actions:
-    st.markdown("""
-    <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px;">
-        <span class="btn-action-purple">+ Titre</span>
-        <span class="btn-action-blue">+ Tâche</span>
-        <span class="btn-action-green">+ Note</span>
-    </div>
-    """, unsafe_allow_html=True)
+st.markdown(f"## **Chantier : {chantier_actif}**")
+st.markdown(f"<span style='color: #718096; font-weight: 500;'>Filtre actif : <b>{nature_selectionnee_sidebar}</b></span>", unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -451,7 +385,6 @@ if df is not None:
     with tab1:
         st.markdown("#### ➕ **Nouvelle entrée d'avancement**")
         
-        # Pre-select nature from sidebar if chosen
         default_idx = 0
         if nature_selectionnee_sidebar != "📌 Tous les travaux":
             try:
@@ -509,11 +442,9 @@ if df is not None:
 
         df_filtered = df.copy()
 
-        # Application du filtre principal de la Sidebar Navigation
         if nature_selectionnee_sidebar != "📌 Tous les travaux":
             df_filtered = df_filtered[df_filtered['TITRE DE LA NATURE DES TRAVAUX'] == nature_selectionnee_sidebar]
 
-        # Application des filtres secondaires
         if filter_nature:
             df_filtered = df_filtered[df_filtered['TITRE DE LA NATURE DES TRAVAUX'].isin(filter_nature)]
         if filter_partie:

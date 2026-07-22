@@ -15,7 +15,7 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.utils import get_column_letter
 
 # ==========================================
-# 0. CONFIGURATION & HIGH-VISIBILITY CSS
+# 0. CONFIGURATION & PERFECT TABS VISIBILITY CSS
 # ==========================================
 st.set_page_config(
     page_title="BATISCRIPT - Suivi Chantier",
@@ -23,8 +23,8 @@ st.set_page_config(
     layout="wide"
 )
 
-# Strict Visibility CSS Override
-st.markdown("""
+# Custom CSS specifically targeting Streamlit Tabs and all text elements
+st.markdown('''
 <style>
     /* Force main background */
     .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
@@ -61,7 +61,7 @@ st.markdown("""
         font-weight: 700 !important;
     }
 
-    /* FIX INVISIBLE LABELS ABOVE INPUTS */
+    /* FORM LABELS VISIBILITY FIX */
     [data-testid="stWidgetLabel"], 
     [data-testid="stWidgetLabel"] *, 
     label, label * {
@@ -71,7 +71,7 @@ st.markdown("""
         opacity: 1 !important;
     }
 
-    /* FIX INVISIBLE PLACEHOLDERS */
+    /* PLACEHOLDERS */
     input::placeholder, textarea::placeholder {
         color: #64748b !important;
         opacity: 1 !important;
@@ -85,34 +85,66 @@ st.markdown("""
         border-radius: 8px !important;
     }
 
-    /* FIX TABS VISIBILITY (ACTIVE & INACTIVE) */
+    /* ========================================================= */
+    /* COMPLETE TABS FIX - INACTIVE TAB TEXT VISIBILITY FIX */
+    /* ========================================================= */
     .stTabs [data-baseweb="tab-list"] {
         background-color: #e2e8f0 !important;
-        padding: 5px !important;
-        border-radius: 10px !important;
-        gap: 6px !important;
-    }
-    .stTabs [data-baseweb="tab"] {
-        background-color: #f1f5f9 !important;
-        border-radius: 8px !important;
-        padding: 8px 18px !important;
+        padding: 6px !important;
+        border-radius: 12px !important;
+        gap: 8px !important;
         border: 1px solid #cbd5e1 !important;
     }
-    /* Inactive Tab Text */
-    .stTabs [data-baseweb="tab"] * {
-        color: #334155 !important;
-        font-weight: 700 !important;
-        font-size: 14px !important;
-    }
-    /* Active Tab */
-    .stTabs [aria-selected="true"] {
-        background-color: #4f46e5 !important;
+
+    /* Base style for ALL Tabs */
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 8px !important;
+        padding: 10px 20px !important;
+        transition: all 0.2s ease !important;
         border: none !important;
     }
-    /* Active Tab Text */
-    .stTabs [aria-selected="true"] * {
+
+    /* INACTIVE TAB - Dark bold visible text */
+    .stTabs [data-baseweb="tab"][aria-selected="false"] {
+        background-color: #ffffff !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+    }
+    .stTabs [data-baseweb="tab"][aria-selected="false"] *,
+    .stTabs [data-baseweb="tab"][aria-selected="false"] p,
+    .stTabs [data-baseweb="tab"][aria-selected="false"] div,
+    .stTabs [data-baseweb="tab"][aria-selected="false"] span {
+        color: #0f172a !important;
+        font-weight: 700 !important;
+        font-size: 15px !important;
+        opacity: 1 !important;
+    }
+
+    /* Hover state for inactive tab */
+    .stTabs [data-baseweb="tab"][aria-selected="false"]:hover {
+        background-color: #f1f5f9 !important;
+    }
+
+    /* ACTIVE TAB - Deep Indigo with crisp white text */
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        background-color: #4f46e5 !important;
+        box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3) !important;
+    }
+    .stTabs [data-baseweb="tab"][aria-selected="true"] *,
+    .stTabs [data-baseweb="tab"][aria-selected="true"] p,
+    .stTabs [data-baseweb="tab"][aria-selected="true"] div,
+    .stTabs [data-baseweb="tab"][aria-selected="true"] span {
         color: #ffffff !important;
         font-weight: 800 !important;
+        font-size: 15px !important;
+        opacity: 1 !important;
+    }
+
+    /* Hide default underline accent bar under tabs */
+    .stTabs [data-baseweb="tab-highlight"] {
+        background-color: transparent !important;
+    }
+    .stTabs [data-baseweb="tab-border"] {
+        background-color: transparent !important;
     }
 
     /* SIDEBAR STYLING */
@@ -150,7 +182,7 @@ st.markdown("""
         color: #ffffff !important;
     }
 </style>
-""", unsafe_allow_html=True)
+''', unsafe_allow_html=True)
 
 # ==========================================
 # 1. FONCTIONS ET INITIALISATION
@@ -322,7 +354,7 @@ def save_to_excel_with_formatting(df_to_save, filepath, sheet_name="Chantier Pri
         return False, f"❌ Erreur : {e}"
 
 # ==========================================
-# 2. HEADER TOP BAR (INTEGRATED DASHBOARD)
+# 2. HEADER TOP BAR
 # ==========================================
 chantiers_existants = get_sheet_names(chemin_excel_defaut)
 
@@ -344,7 +376,7 @@ with col_h2:
     )
 
 # ==========================================
-# 3. SIDEBAR (NAVIGATION PAR NATURE)
+# 3. SIDEBAR
 # ==========================================
 st.sidebar.markdown("📌 **NAVIGATION PAR NATURE DES TRAVAUX**")
 

@@ -15,7 +15,7 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.utils import get_column_letter
 
 # ==========================================
-# 0. CONFIGURATION & NEW DASHBOARD STYLE
+# 0. CONFIGURATION & FULL THEME IMMUNITY CSS
 # ==========================================
 st.set_page_config(
     page_title="BATISCRIPT - Suivi Chantier",
@@ -23,52 +23,71 @@ st.set_page_config(
     layout="wide"
 )
 
-# Modern Slate & Indigo Dashboard Theme (100% Reliable, No External Images)
+# Custom CSS forcing exact text visibility regardless of Streamlit Light/Dark settings
 st.markdown("""
 <style>
-    /* App Background */
-    .stApp {
-        background-color: #f8fafc !important;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    /* Force main background on all container wrappers */
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        background-color: #f1f5f9 !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
     }
 
-    /* Top Bar Header Container */
+    /* Force dark readable text everywhere in main body */
+    .main p, .main span, .main label, .main h1, .main h2, .main h3, .main h4, .main div {
+        color: #0f172a !important;
+    }
+
+    /* Top Bar Header Styling */
     .top-header-bar {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        padding: 14px 28px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 25px;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+        padding: 16px 28px !important;
+        border-radius: 12px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        margin-bottom: 25px !important;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
     }
 
     .top-header-title {
-        color: #ffffff;
-        font-size: 22px;
-        font-weight: 800;
-        letter-spacing: 0.5px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
+        color: #ffffff !important;
+        font-size: 22px !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.5px !important;
     }
 
     .top-header-role {
-        background-color: rgba(245, 158, 11, 0.15);
-        color: #fbbf24;
-        border: 1px solid rgba(245, 158, 11, 0.3);
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-size: 13px;
-        font-weight: 700;
+        background-color: rgba(245, 158, 11, 0.2) !important;
+        color: #fbbf24 !important;
+        border: 1px solid rgba(245, 158, 11, 0.4) !important;
+        padding: 6px 14px !important;
+        border-radius: 20px !important;
+        font-size: 13px !important;
+        font-weight: 700 !important;
     }
 
-    /* Selectbox custom fit inside layout */
+    /* Form Card Container */
+    div[data-testid="stForm"], div[data-testid="stVerticalBlock"] > div.element-container {
+        color: #0f172a !important;
+    }
+
+    /* Selectbox Fixes */
     div[data-testid="stSelectbox"] div[data-baseweb="select"] {
         background-color: #ffffff !important;
         border-radius: 8px !important;
         border: 1px solid #cbd5e1 !important;
+    }
+    div[data-testid="stSelectbox"] div[data-baseweb="select"] * {
+        color: #0f172a !important;
+        font-weight: 600 !important;
+    }
+
+    /* Inputs Fixes */
+    input, textarea {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+        border-radius: 8px !important;
     }
 
     /* Sidebar Clean Styling */
@@ -76,43 +95,42 @@ st.markdown("""
         background-color: #ffffff !important;
         border-right: 1px solid #e2e8f0 !important;
     }
-    
-    /* Modern Card Layouts */
-    div[data-testid="stVerticalBlock"] > div:has(div.card-marker) {
-        background-color: #ffffff;
-        padding: 24px;
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    section[data-testid="stSidebar"] * {
+        color: #1e293b !important;
     }
 
-    /* Tab Styling */
+    /* Tabs Styling */
     .stTabs [data-baseweb="tab-list"] {
-        background-color: #e2e8f0;
-        padding: 4px;
-        border-radius: 10px;
-        gap: 4px;
+        background-color: #e2e8f0 !important;
+        padding: 4px !important;
+        border-radius: 10px !important;
+        gap: 4px !important;
     }
     .stTabs [data-baseweb="tab"] {
-        border-radius: 8px;
-        padding: 8px 16px;
-        font-weight: 600;
-        color: #475569;
+        border-radius: 8px !important;
+        padding: 8px 16px !important;
+        font-weight: 700 !important;
+        color: #475569 !important;
     }
     .stTabs [aria-selected="true"] {
         background-color: #4f46e5 !important;
         color: #ffffff !important;
     }
+    .stTabs [aria-selected="true"] * {
+        color: #ffffff !important;
+    }
 
-    /* Primary Buttons */
+    /* Buttons */
     .stButton > button[kind="primary"] {
         background-color: #4f46e5 !important;
         color: #ffffff !important;
         border-radius: 8px !important;
-        font-weight: 600 !important;
+        font-weight: 700 !important;
         border: none !important;
         padding: 10px 20px !important;
-        box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+    }
+    .stButton > button[kind="primary"] * {
+        color: #ffffff !important;
     }
 
     /* Sidebar Green Validate Button */
@@ -123,6 +141,9 @@ st.markdown("""
         font-weight: 700 !important;
         border: none !important;
         width: 100%;
+    }
+    .st-key-btn_validate > button * {
+        color: #ffffff !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -301,7 +322,6 @@ def save_to_excel_with_formatting(df_to_save, filepath, sheet_name="Chantier Pri
 # ==========================================
 chantiers_existants = get_sheet_names(chemin_excel_defaut)
 
-# Clean High-Contrast Header Bar
 col_h1, col_h2 = st.columns([3, 1])
 
 with col_h1:
@@ -313,7 +333,7 @@ with col_h1:
     ''', unsafe_allow_html=True)
 
 with col_h2:
-    st.markdown("<div style='font-size:12px; font-weight:700; color:#64748b; margin-bottom:4px;'>🏗️ CHANTIER ACTIF :</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:12px; font-weight:700; color:#475569; margin-bottom:4px;'>🏗️ CHANTIER ACTIF :</div>", unsafe_allow_html=True)
     chantier_actif = st.selectbox(
         "Sélection du Chantier",
         options=chantiers_existants,
@@ -372,7 +392,7 @@ if st.sidebar.button("✓ Valider le compte rendu", key="btn_validate", type="se
 # 4. INTERFACE PRINCIPALE (WORKSPACE)
 # ==========================================
 st.markdown(f"<h2 style='color:#0f172a; font-weight:800; margin-top:0;'>Chantier : <span style='color:#4f46e5;'>{chantier_actif}</span></h2>", unsafe_allow_html=True)
-st.markdown(f"<span style='color: #64748b; font-weight: 600; font-size:14px;'>Filtre actif : <b style='color:#0f172a;'>{nature_selectionnee_sidebar}</b></span>", unsafe_allow_html=True)
+st.markdown(f"<span style='color: #475569; font-weight: 600; font-size:14px;'>Filtre actif : <b style='color:#0f172a;'>{nature_selectionnee_sidebar}</b></span>", unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 

@@ -363,8 +363,8 @@ col_h1, col_h2 = st.columns([2.8, 1.2])
 with col_h1:
     st.markdown('''
     <div class="top-header-bar">
-        <div class="top-header-title">🏢 BATISCRIPT</div>
-        <div class="top-header-role">🏅 Responsable de Qualité</div>
+        <div class="top-header-title">🏢 SUIVI QUALITE</div>
+        <div class="top-header-role">🏅 Responsable Qualité</div>
     </div>
     ''', unsafe_allow_html=True)
 
@@ -418,9 +418,7 @@ else:
         except Exception as e:
             st.sidebar.error(f"Erreur : {e}")
 
-st.sidebar.markdown("---")
-if st.sidebar.button("✓ Valider le compte rendu", key="btn_validate", type="secondary"):
-    st.toast("✅ Compte rendu validé !", icon="🎉")
+
 
 # ==========================================
 # 4. INTERFACE PRINCIPALE (WORKSPACE)

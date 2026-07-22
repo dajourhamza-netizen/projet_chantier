@@ -15,10 +15,121 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.utils import get_column_letter
 
 # ==========================================
-# 0. FONCTIONS D'AIDE ET DU TEXTE EN RICHTEXT
+# 0. CONFIGURATION DE LA PAGE ET STYLES CSS
+# ==========================================
+st.set_page_config(
+    page_title="Suivi Chantier - Génie Civil & Routes",
+    page_icon="🏗️",
+    layout="wide"
+)
+
+# 🎨 Injecting Custom Civil Engineering / Highway CSS Theme
+st.markdown("""
+<style>
+    /* Background General */
+    .stApp {
+        background-color: #f8fafc;
+    }
+    
+    /* Main Banner Header */
+    .gc-header {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        color: #ffffff;
+        padding: 22px 28px;
+        border-radius: 12px;
+        border-left: 8px solid #ff6b00; /* Safety Orange Accent */
+        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.08);
+        margin-bottom: 25px;
+    }
+    .gc-header h1 {
+        color: #ffffff !important;
+        font-size: 26px !important;
+        font-weight: 800 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        letter-spacing: 0.5px;
+    }
+    .gc-header p {
+        color: #94a3b8;
+        margin: 6px 0 0 0;
+        font-size: 14px;
+    }
+
+    /* KPI Cards Styling */
+    .kpi-card {
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-top: 4px solid #ff6b00;
+        border-radius: 10px;
+        padding: 16px;
+        text-align: center;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+    }
+    .kpi-value {
+        font-size: 24px;
+        font-weight: 800;
+        color: #0f172a;
+    }
+    .kpi-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 4px;
+    }
+
+    /* Customizing Buttons */
+    .stButton > button[kind="primary"] {
+        background-color: #ff6b00 !important;
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 8px !important;
+        font-weight: 700 !important;
+        padding: 10px 20px !important;
+        transition: all 0.2s ease-in-out !important;
+    }
+    .stButton > button[kind="primary"]:hover {
+        background-color: #e05e00 !important;
+        box-shadow: 0 4px 12px rgba(255, 107, 0, 0.25) !important;
+    }
+
+    /* Sidebar Customization */
+    section[data-testid="stSidebar"] {
+        background-color: #0f172a !important;
+        color: #ffffff !important;
+    }
+    section[data-testid="stSidebar"] .stMarkdown h1, 
+    section[data-testid="stSidebar"] .stMarkdown h2, 
+    section[data-testid="stSidebar"] .stMarkdown h3,
+    section[data-testid="stSidebar"] label {
+        color: #f1f5f9 !important;
+    }
+
+    /* Tab Design */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: #ffffff;
+        border-radius: 8px;
+        padding: 10px 20px;
+        border: 1px solid #e2e8f0;
+        font-weight: 700;
+        color: #475569;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #ff6b00 !important;
+        color: #ffffff !important;
+        border-color: #ff6b00 !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ==========================================
+# 1. FONCTIONS ET INITIALISATION
 # ==========================================
 def text_to_richtext(text):
-    """تحويل النص لـ RichText باش تحافظ على الرجوع للسطر والخط فـ Word"""
     if not text or pd.isna(text):
         return ""
     rt = RichText()
@@ -28,15 +139,6 @@ def text_to_richtext(text):
         if i < len(lines) - 1:
             rt.add('\n')
     return rt
-
-# ==========================================
-# 1. CONFIGURATION DE LA PAGE ET CHEMINS
-# ==========================================
-st.set_page_config(
-    page_title="Générateur de Fiches Chantier",
-    page_icon="🖨️",
-    layout="wide"
-)
 
 DOSSIER_CHANTIER = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
 
@@ -74,9 +176,6 @@ LIAISONS = {
     "REMBLAIS PST": {"procedure": "TER-PEX-05-00", "pieces": "* Fiche de suivi et de contrôle des remblais PST\n* PVs laboratoire"}
 }
 
-# ==========================================
-# 2. FONCTIONS DE TRAITEMENT ET CONVERSION
-# ==========================================
 def clean_filename(text):
     if not text:
         return ""
@@ -104,7 +203,6 @@ def construire_nom_pdf(row):
     nom_brut = f"{nature} - {partie} - {situation}"
     nom_propre = re.sub(r'[\\/*?:"<>|]', "_", nom_brut)
     nom_propre = re.sub(r'\s+', ' ', nom_propre).strip()
-    
     return f"{nom_propre}.pdf"
 
 def trouver_executable_libreoffice():
@@ -121,7 +219,6 @@ def trouver_executable_libreoffice():
     return None
 
 def generer_docx_et_pdf_bytes(chemin_modele, contexte):
-    """توليد ملفات Word و PDF فـ نفس الوقت"""
     with tempfile.TemporaryDirectory() as temp_dir:
         doc = DocxTemplate(chemin_modele)
         doc.render(contexte)
@@ -129,14 +226,12 @@ def generer_docx_et_pdf_bytes(chemin_modele, contexte):
         docx_temp_path = os.path.join(temp_dir, "temp.docx")
         doc.save(docx_temp_path)
         
-        # 1. قراءة ملف Word كـ Bytes
         with open(docx_temp_path, "rb") as f:
             docx_bytes = f.read()
 
         pdf_temp_path = os.path.join(temp_dir, "temp.pdf")
         pdf_bytes = None
 
-        # 2. تحويل لـ PDF عبر docx2pdf (MS Word)
         try:
             from docx2pdf import convert
             convert(docx_temp_path, pdf_temp_path)
@@ -146,7 +241,6 @@ def generer_docx_et_pdf_bytes(chemin_modele, contexte):
         except Exception:
             pass
 
-        # 3. تحويل لـ PDF عبر LibreOffice (إلا ما كانش MS Word)
         if pdf_bytes is None:
             exe_libreoffice = trouver_executable_libreoffice()
             if exe_libreoffice:
@@ -157,11 +251,7 @@ def generer_docx_et_pdf_bytes(chemin_modele, contexte):
                         pdf_bytes = f.read()
 
         if pdf_bytes is None:
-            raise RuntimeError(
-                "Impossible de trouver un convertisseur PDF (LibreOffice ou MS Word).\n"
-                "• Si MS Word est installé : pip install docx2pdf\n"
-                "• Sinon, installez LibreOffice."
-            )
+            raise RuntimeError("Impossible de convertir en PDF (MS Word ou LibreOffice requis).")
 
         return docx_bytes, pdf_bytes
 
@@ -206,16 +296,16 @@ def save_to_excel_with_formatting(df_to_save, filepath, sheet_name="Chantier Pri
         return False, f"❌ Erreur : {e}"
 
 # ==========================================
-# 3. BARRE LATÉRALE (SOURCE & PROJETS)
+# 2. BARRE LATÉRALE (SIDEBAR)
 # ==========================================
-st.sidebar.header("🏢 Gestion des Chantiers / Projets")
+st.sidebar.markdown("### 🏗️ **Gestion de Chantier**")
 
 chantiers_existants = get_sheet_names(chemin_excel_defaut)
-chantier_actif = st.sidebar.selectbox("📌 Choisir le Chantier Actif :", options=chantiers_existants)
+chantier_actif = st.sidebar.selectbox("📌 **Projet / Tronçon Actif :**", options=chantiers_existants)
 
-with st.sidebar.expander("➕ Créer un Nouveau Projet", expanded=False):
-    nouveau_projet_nom = st.text_input("Nom du projet :", placeholder="Ex: Viaduc A, Tronçon 2...")
-    if st.button("➕ Ajouter le Projet", use_container_width=True):
+with st.sidebar.expander("➕ Nouveau Projet", expanded=False):
+    nouveau_projet_nom = st.text_input("Nom du projet :", placeholder="Ex: Autoroute PK 12, Viaduc...")
+    if st.button("➕ Créer le Projet", use_container_width=True):
         if nouveau_projet_nom.strip():
             nom_clean = nouveau_projet_nom.strip()
             if nom_clean not in chantiers_existants:
@@ -223,18 +313,16 @@ with st.sidebar.expander("➕ Créer un Nouveau Projet", expanded=False):
                 save_to_excel_with_formatting(df_vide, chemin_excel_defaut, sheet_name=nom_clean)
                 st.success(f"Projet '{nom_clean}' créé !")
                 st.rerun()
-            else:
-                st.warning("Ce nom de projet existe déjà !")
 
 st.sidebar.markdown("---")
-st.sidebar.header("📁 Source des Données")
+st.sidebar.markdown("### 📂 **Source des Données**")
 source_excel = st.sidebar.radio(
-    "Choisir la source :",
-    ["Fichier par défaut (suivi .xlsx)", "Téléverser un nouveau fichier Excel"]
+    "Source :",
+    ["Fichier système (suivi.xlsx)", "Téléverser un autre fichier Excel"]
 )
 
 df = None
-if source_excel == "Fichier par défaut (suivi .xlsx)":
+if source_excel == "Fichier système (suivi.xlsx)":
     if os.path.exists(chemin_excel_defaut):
         try:
             df = pd.read_excel(chemin_excel_defaut, sheet_name=chantier_actif).fillna("")
@@ -242,46 +330,68 @@ if source_excel == "Fichier par défaut (suivi .xlsx)":
         except Exception as e:
             st.sidebar.error(f"❌ Erreur de lecture : {e}")
     else:
-        st.sidebar.error(f"❌ Fichier introuvable dans `{DOSSIER_CHANTIER}`")
+        st.sidebar.error("❌ Fichier Excel introuvable.")
 else:
-    fichier_upload = st.sidebar.file_uploader("Choisissez un fichier Excel", type=["xlsx", "xls"])
+    fichier_upload = st.sidebar.file_uploader("Fichier Excel (.xlsx)", type=["xlsx", "xls"])
     if fichier_upload is not None:
         try:
             df = pd.read_excel(fichier_upload).fillna("")
-            st.sidebar.success("✅ Fichier importé avec succès !")
+            st.sidebar.success("✅ Importation réussie !")
         except Exception as e:
-            st.sidebar.error(f"❌ Erreur lors de l'importation : {e}")
+            st.sidebar.error(f"❌ Erreur : {e}")
 
 # ==========================================
-# 4. INTERFACE PRINCIPALE
+# 3. INTERFACE PRINCIPALE
 # ==========================================
-st.title(f"🏗️ Chantier - Projet : **{chantier_actif}**")
-st.markdown("---")
+
+# Banner Title
+st.markdown(f"""
+<div class="gc-header">
+    <h1>🛣️ Plateforme Génie Civil & Travaux Routiers</h1>
+    <p>Gestion des suivi de travaux, fiches de contrôle & édition automatique des documents Word/PDF | Projet : <b>{chantier_actif}</b></p>
+</div>
+""", unsafe_allow_html=True)
 
 if df is not None:
-    tab1, tab2 = st.tabs(["📝 Nouvelle Saisie", "📊 Consulter, Éditer & Générer PDF"])
+    # 📊 KPI Cards Section
+    k1, k2, k3, k4 = st.columns(4)
+    with k1:
+        st.markdown(f'<div class="kpi-card"><div class="kpi-value">{len(df)}</div><div class="kpi-label">📝 Fiches Enregistrées</div></div>', unsafe_allow_html=True)
+    with k2:
+        nb_natures = df['TITRE DE LA NATURE DES TRAVAUX'].nunique() if 'TITRE DE LA NATURE DES TRAVAUX' in df.columns else 0
+        st.markdown(f'<div class="kpi-card"><div class="kpi-value">{nb_natures}</div><div class="kpi-label">🚜 Natures de Travaux</div></div>', unsafe_allow_html=True)
+    with k3:
+        col_p = COL_PARTIE if COL_PARTIE in df.columns else "PARTIE D meOUVRAGE"
+        nb_parties = df[col_p].nunique() if col_p in df.columns else 0
+        st.markdown(f'<div class="kpi-card"><div class="kpi-value">{nb_parties}</div><div class="kpi-label">🧱 Parties d\'Ouvrage</div></div>', unsafe_allow_html=True)
+    with k4:
+        st.markdown(f'<div class="kpi-card"><div class="kpi-value" style="color:#ff6b00;">Active</div><div class="kpi-label">⚙️ État du Système</div></div>', unsafe_allow_html=True)
+
+    st.write("")
+
+    tab1, tab2 = st.tabs(["📝 **Nouvelle Saisie Chantier**", "📊 **Registre & Génération Word / PDF**"])
 
     # -------------------------------------------------------------
-    # TAB 1 : SAISIE DE DONNÉES
+    # TAB 1 : SAISIE
     # -------------------------------------------------------------
     with tab1:
-        st.subheader(f"📝 Nouvelle Saisie de Données ({chantier_actif})")
+        st.markdown("##### 👷 **Ajouter une nouvelle fiche de contrôle / suivi**")
         col1, col2 = st.columns(2)
         with col1:
-            date_saisie = st.date_input("🗓️ Date", value=datetime.today(), format="DD/MM/YYYY")
-            nature_selectionnee = st.selectbox("📌 TITRE DE LA NATURE DES TRAVAUX", options=list(LIAISONS.keys()))
+            date_saisie = st.date_input("🗓️ Date des Travaux", value=datetime.today(), format="DD/MM/YYYY")
+            nature_selectionnee = st.selectbox("📌 Nature des travaux", options=list(LIAISONS.keys()))
             info_liaison = LIAISONS.get(nature_selectionnee, {"procedure": "", "pieces": ""})
-            partie_ouvrage = st.text_input("🧱 PARTIE D'OUVRAGE", placeholder="Ex: BRETELLE A, BRANCHE 3...")
-            situation = st.text_input("📍 SITUATION / PK", placeholder="Ex: DU PK 0+050 AU PK 0+100")
+            partie_ouvrage = st.text_input("🧱 Partie d'ouvrage", placeholder="Ex: Bretelle B, Tranchée 1...")
+            situation = st.text_input("📍 Situation / PK", placeholder="Ex: PK 12+400 au PK 12+800")
         with col2:
-            activite = st.text_area("🚜 ACTIVITÉ RÉALISÉE", height=80, placeholder="Ex: Terrassement...")
-            essai = st.selectbox("🧪 ÉSSAI / CONTRÔLE RÉALISÉE", options=[
+            activite = st.text_area("🚜 Activité réalisée", height=80, placeholder="Ex: Réalisation de la couche de forme...")
+            essai = st.selectbox("🧪 Essai / Contrôle réalisé", options=[
                 "Aucun", "ESSAI À LA PLAQUE", "DENSITÉ", "ESSAI À LA PLAQUE + DENSITÉ",
                 "TENEUR EN EAU", "IDENTIFICATION DES MATERIAUX" , "PRELEVEMENT AVANT COMPACTAGE", "PRELEVEMENT APRES COMPACTAGE", "PRELEVEMENT"])
-            procedure = st.text_input("📑 RÉFÉRENCE DE PROCÉDURE", value=info_liaison["procedure"])
-            pieces_jointes = st.text_area("📎 PIÈCES JOINTES", value=info_liaison["pieces"], height=120)
+            procedure = st.text_input("📑 Référence procédure", value=info_liaison["procedure"])
+            pieces_jointes = st.text_area("📎 Pièces jointes", value=info_liaison["pieces"], height=100)
 
-        if st.button("💾 Enregistrer la ligne dans Excel", type="primary"):
+        if st.button("💾 Enregistrer la Fiche", type="primary"):
             new_entry = {
                 "DATE": date_saisie.strftime('%d/%m/%Y'),
                 "TITRE DE LA NATURE DES TRAVAUX": nature_selectionnee,
@@ -293,69 +403,40 @@ if df is not None:
                 "PIÈCES JOINTES": pieces_jointes
             }
             df_updated = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
-            if source_excel == "Fichier par défaut (suivi .xlsx)":
+            if source_excel == "Fichier système (suivi.xlsx)":
                 save_to_excel_with_formatting(df_updated, chemin_excel_defaut, sheet_name=chantier_actif)
-            st.success("✅ Données ajoutées avec succès !")
+            st.success("✅ Fiche enregistrée avec succès !")
             st.rerun()
 
     # -------------------------------------------------------------
-    # TAB 2 : TABLEAU EXCEL + FILTRES + GÉNÉRATION WORD & PDF
+    # TAB 2 : REGISTRE & GENERATION
     # -------------------------------------------------------------
     with tab2:
-        st.subheader("📊 Consulter & Éditer les Données")
+        st.markdown("##### 🔍 **Registre des Travaux & Exportation**")
 
-        # BLOC DE FILTRES AVANCÉS
-        with st.expander("🔍 **Filtres de recherche (Nature, Partie d'ouvrage & Dates)**", expanded=False):
+        with st.expander("🔻 **Filtres de Recherche Avancés**", expanded=False):
             col_partie_name = COL_PARTIE if COL_PARTIE in df.columns else "PARTIE D meOUVRAGE"
             
             natures_uniques = sorted([str(x) for x in df['TITRE DE LA NATURE DES TRAVAUX'].unique() if str(x).strip()])
             parties_uniques = sorted([str(x) for x in df[col_partie_name].unique() if str(x).strip()])
-            
-            dates_temp = pd.to_datetime(df['DATE'], format='%d/%m/%Y', errors='coerce')
-            annees_uniques = sorted([int(y) for y in dates_temp.dt.year.dropna().unique()])
-            mois_uniques = sorted([int(m) for m in dates_temp.dt.month.dropna().unique()])
-            jours_uniques = sorted([int(d) for d in dates_temp.dt.day.dropna().unique()])
 
-            col_f1, col_f2 = st.columns(2)
-            with col_f1:
-                filter_nature = st.multiselect("📌 Nature des Travaux", options=natures_uniques)
-            with col_f2:
-                filter_partie = st.multiselect("🧱 Partie d'Ouvrage", options=parties_uniques)
+            cf1, cf2 = st.columns(2)
+            with cf1:
+                filter_nature = st.multiselect("📌 Filtrer par Nature", options=natures_uniques)
+            with cf2:
+                filter_partie = st.multiselect("🧱 Filtrer par Partie d'Ouvrage", options=parties_uniques)
 
-            col_d1, col_d2, col_d3, col_d4 = st.columns([1, 1, 1, 2])
-            with col_d1:
-                filter_annee = st.multiselect("📅 Année", options=annees_uniques)
-            with col_d2:
-                filter_mois = st.multiselect("🗓️ Mois", options=mois_uniques)
-            with col_d3:
-                filter_jour = st.multiselect("📆 Jour", options=jours_uniques)
-            with col_d4:
-                search_text = st.text_input("⚡ Recherche texte libre")
+            search_text = st.text_input("⚡ Recherche rapide par mot-clé")
 
-        # Application des filtres
+        # Application Filtres
         df_filtered = df.copy()
-        dates_parsed = pd.to_datetime(df_filtered['DATE'], format='%d/%m/%Y', errors='coerce')
-
         if filter_nature:
             df_filtered = df_filtered[df_filtered['TITRE DE LA NATURE DES TRAVAUX'].isin(filter_nature)]
-
         if filter_partie:
             df_filtered = df_filtered[df_filtered[col_partie_name].isin(filter_partie)]
-
-        if filter_annee:
-            df_filtered = df_filtered[dates_parsed.dt.year.isin(filter_annee)]
-
-        if filter_mois:
-            df_filtered = df_filtered[dates_parsed.dt.month.isin(filter_mois)]
-
-        if filter_jour:
-            df_filtered = df_filtered[dates_parsed.dt.day.isin(filter_jour)]
-
         if search_text:
             mask = df_filtered.apply(lambda col: col.astype(str).str.contains(search_text, case=False, na=False)).any(axis=1)
             df_filtered = df_filtered[mask]
-
-        st.caption(f"💡 Affichage : **{len(df_filtered)}** / Total : **{len(df)}** lignes. Cochez la case dans **Imprimer** pour l'export Word & PDF.")
 
         df_editor = df_filtered.copy()
         if "Imprimer" not in df_editor.columns:
@@ -364,7 +445,8 @@ if df is not None:
         edited_df = st.data_editor(
             df_editor,
             num_rows="dynamic",
-            height=380
+            height=360,
+            use_container_width=True
         )
 
         lignes_selectionnees = edited_df[edited_df["Imprimer"] == True]
@@ -373,32 +455,26 @@ if df is not None:
         st.markdown("---")
         col_act1, col_act2 = st.columns(2)
 
-        # Bouton 1 : Sauvegarder dans Excel
         with col_act1:
-            if st.button("💾 Enregistrer les modifications dans Excel", type="secondary"):
-                if source_excel == "Fichier par défaut (suivi .xlsx)":
+            if st.button("💾 Enregistrer les modifications Excel", type="secondary", use_container_width=True):
+                if source_excel == "Fichier système (suivi.xlsx)":
                     df.update(edited_df)
                     save_to_excel_with_formatting(df, chemin_excel_defaut, sheet_name=chantier_actif)
-                    st.success("✅ Fichier Excel mis à jour !")
+                    st.success("✅ Base Excel mise à jour !")
                     st.rerun()
-                else:
-                    st.info("ℹ️ Vous utilisez un fichier téléversé temporairement.")
 
-        # Bouton 2 : Générer Word & PDF
         with col_act2:
             if nb_selections == 0:
-                btn_title = "📄 Générer Word & PDF (Cochez au moins une ligne)"
+                btn_title = "📄 Générer Word & PDF (Cochez une ligne)"
             elif nb_selections == 1:
-                nom_fic = construire_nom_pdf(lignes_selectionnees.iloc[0]).replace(".pdf", "")
-                btn_title = f"📄 Générer Word & PDF : {nom_fic}"
+                btn_title = f"📄 Générer Word & PDF (1 Fiche)"
             else:
-                btn_title = f"📦 Générer {nb_selections} fiches (Word & PDF en .ZIP)"
+                btn_title = f"📦 Pack ZIP : {nb_selections} Fiches (Word + PDF)"
 
-            if st.button(btn_title, type="primary"):
+            if st.button(btn_title, type="primary", use_container_width=True):
                 if nb_selections == 0:
                     st.warning("⚠️ Veuillez cocher la case 'Imprimer' d'au moins une ligne dans le tableau !")
                 
-                # CAS 1 : UN SEUL FICHIER (WORD + PDF)
                 elif nb_selections == 1:
                     ligne_choisie = lignes_selectionnees.iloc[0]
                     nom_modele = str(ligne_choisie.get('TITRE DE LA NATURE DES TRAVAUX', '')).strip()
@@ -408,7 +484,7 @@ if df is not None:
                         st.error(f"❌ Le modèle Word `{nom_modele}.docx` est introuvable.")
                     else:
                         try:
-                            with st.spinner("⏳ Génération des fichiers Word & PDF en cours..."):
+                            with st.spinner("⏳ Génération Word & PDF..."):
                                 val_partie = ligne_choisie.get(COL_PARTIE, ligne_choisie.get("PARTIE D meOUVRAGE", ''))
                                 contexte = {
                                     'NATURE': str(ligne_choisie.get('TITRE DE LA NATURE DES TRAVAUX', '')),
@@ -423,45 +499,27 @@ if df is not None:
                                 docx_bytes, pdf_bytes = generer_docx_et_pdf_bytes(chemin_modele, contexte)
                                 
                                 nom_base = construire_nom_pdf(ligne_choisie).replace(".pdf", "")
-                                nom_docx = f"{nom_base}.docx"
-                                nom_pdf = f"{nom_base}.pdf"
 
-                                st.success("✅ Fiches Word & PDF générées avec succès !")
-                                
+                                st.success("✅ Fiches générées !")
                                 c_down1, c_down2 = st.columns(2)
                                 with c_down1:
-                                    st.download_button(
-                                        label=f"📝 Télécharger WORD (.docx)",
-                                        data=docx_bytes,
-                                        file_name=nom_docx,
-                                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                        use_container_width=True
-                                    )
+                                    st.download_button("📝 Télécharger WORD", data=docx_bytes, file_name=f"{nom_base}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
                                 with c_down2:
-                                    st.download_button(
-                                        label=f"📕 Télécharger PDF (.pdf)",
-                                        data=pdf_bytes,
-                                        file_name=nom_pdf,
-                                        mime="application/pdf",
-                                        use_container_width=True
-                                    )
+                                    st.download_button("📕 Télécharger PDF", data=pdf_bytes, file_name=f"{nom_base}.pdf", mime="application/pdf", use_container_width=True)
                         except Exception as e:
-                            st.error(f"❌ Erreur lors de la génération : {e}")
+                            st.error(f"❌ Erreur : {e}")
 
-                # CAS 2 : PLUSIEURS FICHIERS (ZIP CONTENANT WORD + PDF)
                 else:
                     zip_buffer = io.BytesIO()
                     fichiers_crees = 0
-                    erreurs = []
 
-                    with st.spinner(f"⏳ Génération de {nb_selections} fiches (Word & PDF)..."):
+                    with st.spinner(f"⏳ Génération du Pack ({nb_selections} fiches)..."):
                         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
                             for idx, row in lignes_selectionnees.iterrows():
                                 nom_modele = str(row.get('TITRE DE LA NATURE DES TRAVAUX', '')).strip()
                                 chemin_modele = trouver_modele_word(nom_modele)
 
                                 if not chemin_modele:
-                                    erreurs.append(f"Ligne {idx + 1} ({nom_modele}) : Modèle introuvable")
                                     continue
 
                                 try:
@@ -477,35 +535,23 @@ if df is not None:
                                         'ESSAI': str(row.get('ÉSSAI/ CONTRÔLE RÉALISÉE', ''))
                                     }
                                     docx_bytes, pdf_bytes = generer_docx_et_pdf_bytes(chemin_modele, contexte)
-                                    
                                     nom_base = construire_nom_pdf(row).replace(".pdf", "")
-                                    nom_docx = f"{nom_base}.docx"
-                                    nom_pdf = f"{nom_base}.pdf"
 
-                                    # إضافة الملفين معا داخل الـ ZIP
-                                    zip_file.writestr(nom_docx, docx_bytes)
-                                    zip_file.writestr(nom_pdf, pdf_bytes)
+                                    zip_file.writestr(f"{nom_base}.docx", docx_bytes)
+                                    zip_file.writestr(f"{nom_base}.pdf", pdf_bytes)
                                     fichiers_crees += 1
-
-                                except Exception as e:
-                                    erreurs.append(f"Ligne {idx + 1} ({nom_modele}) : {e}")
-
-                    if erreurs:
-                        for err in erreurs:
-                            st.warning(f"⚠️ {err}")
+                                except Exception:
+                                    pass
 
                     if fichiers_crees > 0:
                         zip_buffer.seek(0)
-                        date_str = datetime.now().strftime("%Y%m%d_%H%M")
-                        st.success(f"✅ {fichiers_crees} fiches (Word & PDF) générées avec succès !")
+                        st.success(f"✅ Pack prêt ({fichiers_crees * 2} fichiers) !")
                         st.download_button(
-                            label=f"📦 Télécharger le pack ZIP ({fichiers_crees * 2} fichiers Word + PDF)",
+                            label=f"📦 Télécharger le Pack ZIP",
                             data=zip_buffer,
-                            file_name=f"Fiches_Word_et_PDF_{date_str}.zip",
+                            file_name=f"Fiches_Chantier_{datetime.now().strftime('%Y%m%d_%H%M')}.zip",
                             mime="application/zip",
                             use_container_width=True
                         )
-                    else:
-                        st.error("❌ Aucune fiche n'a pu être générée.")
 else:
     st.info("💡 Veuillez charger un fichier Excel pour commencer.")

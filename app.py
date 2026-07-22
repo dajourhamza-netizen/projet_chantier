@@ -32,9 +32,15 @@ st.markdown("""
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
-    /* Hide standard Streamlit header padding */
+    /* Adjust Streamlit Top Header to prevent topbar clipping */
+    header[data-testid="stHeader"] {
+        background-color: transparent !important;
+        z-index: 1 !important;
+    }
+
+    /* Container padding fixed so topbar is fully visible */
     .block-container {
-        padding-top: 1rem !important;
+        padding-top: 3.5rem !important;
         padding-bottom: 2rem !important;
     }
 
@@ -42,9 +48,9 @@ st.markdown("""
     .batiscript-topbar {
         background-color: #1c2237;
         color: #ffffff;
-        padding: 12px 24px;
+        padding: 14px 24px;
         border-radius: 8px;
-        margin-bottom: 20px;
+        margin-bottom: 25px;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -251,7 +257,7 @@ def clean_filename(text):
     text = str(text)
     if text.lower().endswith('.docx'):
         text = text[:-5]
-    text = unicodedata.normalize('NFD', text).encode('ascii', 'ignore').decode("utf-8")
+    text = unicodedata.normalize('NFD', text).encode('ascii', 'ignore').decode("utf-utf-8") if hasattr(text, 'decode') else unicodedata.normalize('NFD', text).encode('ascii', 'ignore').decode("utf-8")
     text = re.sub(r'\s+', ' ', text)
     return re.sub(r'[^a-zA-Z0-9]', '', text).lower()
 

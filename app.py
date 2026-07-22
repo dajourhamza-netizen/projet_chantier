@@ -23,58 +23,62 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS matching Batiscript UI design exactly
+# Custom CSS matching original Batiscript design with Construction Background Image
 st.markdown("""
 <style>
-    /* Main Canvas Background */
+    /* Background Image with Construction Theme & Semi-Transparent Overlay */
     .stApp {
-        background-color: #f8f9fc !important;
+        background: linear-gradient(rgba(244, 245, 248, 0.90), rgba(244, 245, 248, 0.90)),
+                    url('https://images.unsplash.com/photo-1541888946425-d0fbb186a5b3?auto=format&fit=crop&w=1920&q=80') !important;
+        background-size: cover !important;
+        background-attachment: fixed !important;
+        background-position: center !important;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
-    /* Adjust Streamlit Top Header */
+    /* Adjust Streamlit Header Padding */
     header[data-testid="stHeader"] {
         background-color: transparent !important;
         z-index: 1 !important;
     }
 
-    /* Container padding fixed */
     .block-container {
-        padding-top: 3.5rem !important;
+        padding-top: 2rem !important;
         padding-bottom: 2rem !important;
     }
 
-    /* Force the Topbar Columns block to be Dark Navy Header */
-    div[data-testid="stHorizontalBlock"]:has(div.topbar-flag) {
+    /* Header Bar Container (Dark Navy Batiscript Style) */
+    div.element-container:has(div.header-marker) + div[data-testid="stHorizontalBlock"] {
         background-color: #1c2237 !important;
-        padding: 12px 20px !important;
-        border-radius: 10px !important;
+        padding: 10px 24px !important;
+        border-radius: 8px !important;
         margin-bottom: 25px !important;
         align-items: center !important;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
     }
 
-    /* Style the selectbox inside topbar */
-    div[data-testid="stHorizontalBlock"]:has(div.topbar-flag) div[data-baseweb="select"] {
+    /* Style the selectbox inside top bar */
+    div[data-testid="stSelectbox"] div[data-baseweb="select"] {
         background-color: #2a324b !important;
         border-radius: 6px !important;
         border: 1px solid #4a5568 !important;
     }
-    div[data-testid="stHorizontalBlock"]:has(div.topbar-flag) div[data-baseweb="select"] * {
+    div[data-testid="stSelectbox"] div[data-baseweb="select"] * {
         color: #ffffff !important;
-        font-weight: 700 !important;
+        font-weight: 600 !important;
     }
 
-    /* Sidebar Batiscript Light Style */
+    /* Sidebar Styling */
     section[data-testid="stSidebar"] {
-        background-color: #f4f5f8 !important;
+        background-color: rgba(244, 245, 248, 0.95) !important;
         border-right: 1px solid #e2e8f0;
+        backdrop-filter: blur(6px);
     }
     section[data-testid="stSidebar"] * {
         color: #2d3748 !important;
     }
 
-    /* Green Bottom Action Button Style */
+    /* Green Bottom Action Button */
     .st-key-btn_validate > button {
         background-color: #27c383 !important;
         color: #ffffff !important;
@@ -89,9 +93,9 @@ st.markdown("""
         background-color: #21a971 !important;
     }
 
-    /* Tabs Layout Style */
+    /* Tabs Layout Styling */
     .stTabs [data-baseweb="tab-list"] {
-        background-color: #edf2f7;
+        background-color: rgba(237, 242, 247, 0.9);
         padding: 5px;
         border-radius: 10px;
         gap: 6px;
@@ -292,25 +296,24 @@ def save_to_excel_with_formatting(df_to_save, filepath, sheet_name="Chantier Pri
         return False, f"❌ Erreur : {e}"
 
 # ==========================================
-# 2. HEADER TOP BAR (DARK NAVY CONTAINER)
+# 2. HEADER TOP BAR (BATISCRIPT STYLE)
 # ==========================================
 chantiers_existants = get_sheet_names(chemin_excel_defaut)
 
-col_tb1, col_tb2, col_tb3 = st.columns([3.2, 2.8, 2.5])
+# Marker for CSS targeting of the top bar row
+st.markdown('<div class="header-marker"></div>', unsafe_allow_html=True)
+col_tb1, col_tb2, col_tb3 = st.columns([2.5, 3, 2.5])
 
 with col_tb1:
     st.markdown('''
-    <div style="display: flex; align-items: center; gap: 10px; padding-top: 4px;">
-        <div class="topbar-flag" style="display:none;"></div>
-        <span style="font-size: 18px; font-weight: 900; color: #ffffff; letter-spacing: 1px;">🏢 BATISCRIPT</span>
-        <span style="color: #4a5568; font-weight: bold;">|</span>
-        <span style="font-size: 13px; color: #38bdf8; font-weight: 700; background-color: #2a324b; padding: 4px 10px; border-radius: 6px; border: 1px solid #3b82f6;">👤 DAJOUR Hamza</span>
+    <div style="display: flex; align-items: center; height: 100%; min-height: 40px;">
+        <span style="font-size: 20px; font-weight: 900; color: #ffffff; letter-spacing: 1.2px;">🏢 BATISCRIPT</span>
     </div>
     ''', unsafe_allow_html=True)
 
 with col_tb2:
     chantier_actif = st.selectbox(
-        "Sélection du Chantier",
+        "Chantiers",
         options=chantiers_existants,
         label_visibility="collapsed",
         key="topbar_chantier_select"
@@ -318,9 +321,9 @@ with col_tb2:
 
 with col_tb3:
     st.markdown('''
-    <div style="text-align: right; padding-top: 4px;">
-        <span style="color: #ffffff; font-size: 13px; font-weight: 700; background-color: #2a324b; padding: 6px 12px; border-radius: 6px; border: 1px solid #4a5568;">
-            🏅 Responsable de Qualité
+    <div style="display: flex; align-items: center; justify-content: flex-end; height: 100%; min-height: 40px;">
+        <span style="color: #ffffff; font-size: 14px; font-weight: 600;">
+            👤 Responsable de Qualité <span style="font-size: 10px; margin-left: 4px;">▼</span>
         </span>
     </div>
     ''', unsafe_allow_html=True)
@@ -376,7 +379,7 @@ if st.sidebar.button("✓ Valider le compte rendu", key="btn_validate", type="se
 # 4. INTERFACE PRINCIPALE (WORKSPACE)
 # ==========================================
 st.markdown(f"## **Chantier : {chantier_actif}**")
-st.markdown(f"<span style='color: #718096; font-weight: 500;'>Filtre actif : <b>{nature_selectionnee_sidebar}</b></span>", unsafe_allow_html=True)
+st.markdown(f"<span style='color: #4a5568; font-weight: 600;'>Filtre actif : <b>{nature_selectionnee_sidebar}</b></span>", unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 

@@ -109,7 +109,7 @@ st.markdown("""
     }
 
     /* Green Bottom Action Button Style */
-    .stButton > button[kind="secondary"] {
+    .st-key-btn_validate > button {
         background-color: #27c383 !important;
         color: #ffffff !important;
         border: none !important;
@@ -119,7 +119,7 @@ st.markdown("""
         width: 100%;
         box-shadow: 0 2px 4px rgba(39, 195, 131, 0.2);
     }
-    .stButton > button[kind="secondary"]:hover {
+    .st-key-btn_validate > button:hover {
         background-color: #21a971 !important;
     }
 
@@ -160,22 +160,6 @@ st.markdown("""
         padding: 16px;
         margin-bottom: 12px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-    }
-    .status-badge-complete {
-        background-color: #27c383;
-        color: white;
-        padding: 3px 10px;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: 700;
-    }
-    .status-badge-pending {
-        background-color: #33b3ff;
-        color: white;
-        padding: 3px 10px;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: 700;
     }
 
     /* Tabs Layout Style */
@@ -451,7 +435,7 @@ else:
             st.sidebar.error(f"Erreur : {e}")
 
 st.sidebar.markdown("---")
-if st.sidebar.button("✓ Valider le compte rendu", key="btn_validate", kind="secondary"):
+if st.sidebar.button("✓ Valider le compte rendu", key="btn_validate", type="secondary"):
     st.toast("✅ Compte rendu validé !", icon="🎉")
 
 # ==========================================

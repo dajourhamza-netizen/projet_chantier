@@ -102,18 +102,6 @@ st.markdown("""
         box-shadow: 0 1px 3px rgba(0,0,0,0.03);
     }
 
-    /* Highlight Active Selected Item (Purple Accent) */
-    .active-lot-badge {
-        background-color: #5b58e6 !important;
-        color: #ffffff !important;
-        padding: 10px 14px;
-        border-radius: 8px;
-        font-weight: 700;
-        font-size: 14px;
-        margin: 10px 0;
-        box-shadow: 0 2px 5px rgba(91, 88, 230, 0.3);
-    }
-
     /* Green Bottom Action Button Style */
     .st-key-btn_validate > button {
         background-color: #27c383 !important;
@@ -156,16 +144,6 @@ st.markdown("""
         font-weight: 700;
         font-size: 13px;
         display: inline-block;
-    }
-
-    /* Task / Entry Card Batiscript Style */
-    .task-card {
-        background: #ffffff;
-        border: 1.5px solid #33b3ff;
-        border-radius: 12px;
-        padding: 16px;
-        margin-bottom: 12px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
     }
 
     /* Tabs Layout Style */
@@ -257,7 +235,7 @@ def clean_filename(text):
     text = str(text)
     if text.lower().endswith('.docx'):
         text = text[:-5]
-    text = unicodedata.normalize('NFD', text).encode('ascii', 'ignore').decode("utf-utf-8") if hasattr(text, 'decode') else unicodedata.normalize('NFD', text).encode('ascii', 'ignore').decode("utf-8")
+    text = unicodedata.normalize('NFD', text).encode('ascii', 'ignore').decode("utf-8")
     text = re.sub(r'\s+', ' ', text)
     return re.sub(r'[^a-zA-Z0-9]', '', text).lower()
 
@@ -401,24 +379,26 @@ chantier_actif = st.sidebar.selectbox("", options=chantiers_existants, label_vis
 st.sidebar.markdown('</div>', unsafe_allow_html=True)
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("📌 **NAVIGATION PAR LOT**")
-st.sidebar.markdown(f'<div class="active-lot-badge">03 - {chantier_actif}</div>', unsafe_allow_html=True)
+st.sidebar.markdown("📌 **NAVIGATION PAR NATURE DES TRAVAUX**")
 
-st.sidebar.markdown("• 04 - Menuiseries / Lancelot")
-st.sidebar.markdown("• 05 - Isolation ABCR")
-st.sidebar.markdown("• 06 - Électricité VOLT98")
-st.sidebar.markdown("• 07 - Plomberie Auray")
+# Liste des natures de travaux pour la navigation
+liste_natures_nav = ["📌 Tous les travaux"] + list(LIAISONS.keys())
+nature_selectionnee_sidebar = st.sidebar.radio(
+    "Filtrer par nature :",
+    options=liste_natures_nav,
+    index=0
+)
 
 st.sidebar.markdown("---")
-with st.sidebar.expander("➕ Ajouter un nouveau lot", expanded=False):
-    nouveau_projet_nom = st.text_input("Nom du lot/projet :", placeholder="Ex: 08 - Peinture...")
+with st.sidebar.expander("➕ Ajouter un nouveau chantier/onglet", expanded=False):
+    nouveau_projet_nom = st.text_input("Nom du projet :", placeholder="Ex: NGE ADM Lot 02...")
     if st.button("➕ Créer", use_container_width=True):
         if nouveau_projet_nom.strip():
             nom_clean = nouveau_projet_nom.strip()
             if nom_clean not in chantiers_existants:
                 df_vide = pd.DataFrame(columns=COLUMNS_TEMPLATE)
                 save_to_excel_with_formatting(df_vide, chemin_excel_defaut, sheet_name=nom_clean)
-                st.success("Lot créé !")
+                st.success("Chantier créé !")
                 st.rerun()
 
 st.sidebar.markdown("---")
@@ -450,8 +430,8 @@ if st.sidebar.button("✓ Valider le compte rendu", key="btn_validate", type="se
 col_title, col_actions = st.columns([3, 2])
 
 with col_title:
-    st.markdown(f"## **03 - {chantier_actif}**")
-    st.markdown("<span style='color: #718096; font-weight: 500;'>Suivi & Génération de Fiches Chantier</span>", unsafe_allow_html=True)
+    st.markdown(f"## **Chantier : {chantier_actif}**")
+    st.markdown(f"<span style='color: #718096; font-weight: 500;'>Filtre actif : <b>{nature_selectionnee_sidebar}</b></span>", unsafe_allow_html=True)
 
 with col_actions:
     st.markdown("""
@@ -470,10 +450,19 @@ if df is not None:
     # TAB 1: FORMULAIRE DE SAISIE
     with tab1:
         st.markdown("#### ➕ **Nouvelle entrée d'avancement**")
+        
+        # Pre-select nature from sidebar if chosen
+        default_idx = 0
+        if nature_selectionnee_sidebar != "📌 Tous les travaux":
+            try:
+                default_idx = list(LIAISONS.keys()).index(nature_selectionnee_sidebar)
+            except ValueError:
+                default_idx = 0
+
         col1, col2 = st.columns(2)
         with col1:
             date_saisie = st.date_input("🗓️ Date d'intervention", value=datetime.today(), format="DD/MM/YYYY")
-            nature_selectionnee = st.selectbox("🏗️ Nature des Travaux", options=list(LIAISONS.keys()))
+            nature_selectionnee = st.selectbox("🏗️ Nature des Travaux", options=list(LIAISONS.keys()), index=default_idx)
             info_liaison = LIAISONS.get(nature_selectionnee, {"procedure": "", "pieces": ""})
             partie_ouvrage = st.text_input("🧱 Partie d'ouvrage", placeholder="Ex: Hall RDC Bâtiment A...")
             situation = st.text_input("📍 Situation / PK", placeholder="Ex: Du PK 0+050 au PK 0+100")
@@ -512,13 +501,19 @@ if df is not None:
 
         col_f1, col_f2 = st.columns(2)
         with col_f1:
-            filter_nature = st.multiselect("📌 Nature des travaux", options=natures_uniques)
+            filter_nature = st.multiselect("📌 Nature des travaux (Filtre secondaire)", options=natures_uniques)
         with col_f2:
             filter_partie = st.multiselect("🧱 Partie d'Ouvrage", options=parties_uniques)
 
         search_text = st.text_input("⚡ Recherche rapide")
 
         df_filtered = df.copy()
+
+        # Application du filtre principal de la Sidebar Navigation
+        if nature_selectionnee_sidebar != "📌 Tous les travaux":
+            df_filtered = df_filtered[df_filtered['TITRE DE LA NATURE DES TRAVAUX'] == nature_selectionnee_sidebar]
+
+        # Application des filtres secondaires
         if filter_nature:
             df_filtered = df_filtered[df_filtered['TITRE DE LA NATURE DES TRAVAUX'].isin(filter_nature)]
         if filter_partie:

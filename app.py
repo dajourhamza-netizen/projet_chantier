@@ -15,7 +15,7 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.utils import get_column_letter
 
 # ==========================================
-# 0. CONFIGURATION & FULL THEME IMMUNITY CSS
+# 0. CONFIGURATION & HIGH-VISIBILITY CSS
 # ==========================================
 st.set_page_config(
     page_title="BATISCRIPT - Suivi Chantier",
@@ -23,30 +23,25 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS forcing exact text visibility regardless of Streamlit Light/Dark settings
+# Strict Visibility CSS Override
 st.markdown("""
 <style>
-    /* Force main background on all container wrappers */
+    /* Force main background */
     .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
-        background-color: #f1f5f9 !important;
+        background-color: #f8fafc !important;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
     }
 
-    /* Force dark readable text everywhere in main body */
-    .main p, .main span, .main label, .main h1, .main h2, .main h3, .main h4, .main div {
-        color: #0f172a !important;
-    }
-
-    /* Top Bar Header Styling */
+    /* TOP BAR HEADER */
     .top-header-bar {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
-        padding: 16px 28px !important;
+        padding: 14px 24px !important;
         border-radius: 12px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: space-between !important;
-        margin-bottom: 25px !important;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15) !important;
+        margin-bottom: 20px !important;
     }
 
     .top-header-title {
@@ -66,31 +61,61 @@ st.markdown("""
         font-weight: 700 !important;
     }
 
-    /* Form Card Container */
-    div[data-testid="stForm"], div[data-testid="stVerticalBlock"] > div.element-container {
+    /* FIX INVISIBLE LABELS ABOVE INPUTS */
+    [data-testid="stWidgetLabel"], 
+    [data-testid="stWidgetLabel"] *, 
+    label, label * {
         color: #0f172a !important;
+        font-weight: 700 !important;
+        font-size: 14px !important;
+        opacity: 1 !important;
     }
 
-    /* Selectbox Fixes */
-    div[data-testid="stSelectbox"] div[data-baseweb="select"] {
+    /* FIX INVISIBLE PLACEHOLDERS */
+    input::placeholder, textarea::placeholder {
+        color: #64748b !important;
+        opacity: 1 !important;
+    }
+
+    /* INPUTS & TEXT AREAS */
+    input, textarea, [data-baseweb="input"] {
         background-color: #ffffff !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
         border-radius: 8px !important;
+    }
+
+    /* FIX TABS VISIBILITY (ACTIVE & INACTIVE) */
+    .stTabs [data-baseweb="tab-list"] {
+        background-color: #e2e8f0 !important;
+        padding: 5px !important;
+        border-radius: 10px !important;
+        gap: 6px !important;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: #f1f5f9 !important;
+        border-radius: 8px !important;
+        padding: 8px 18px !important;
         border: 1px solid #cbd5e1 !important;
     }
-    div[data-testid="stSelectbox"] div[data-baseweb="select"] * {
-        color: #0f172a !important;
-        font-weight: 600 !important;
+    /* Inactive Tab Text */
+    .stTabs [data-baseweb="tab"] * {
+        color: #334155 !important;
+        font-weight: 700 !important;
+        font-size: 14px !important;
+    }
+    /* Active Tab */
+    .stTabs [aria-selected="true"] {
+        background-color: #4f46e5 !important;
+        border: none !important;
+    }
+    /* Active Tab Text */
+    .stTabs [aria-selected="true"] * {
+        color: #ffffff !important;
+        font-weight: 800 !important;
     }
 
-    /* Inputs Fixes */
-    input, textarea {
-        background-color: #ffffff !important;
-        color: #0f172a !important;
-        border: 1px solid #cbd5e1 !important;
-        border-radius: 8px !important;
-    }
-
-    /* Sidebar Clean Styling */
+    /* SIDEBAR STYLING */
     section[data-testid="stSidebar"] {
         background-color: #ffffff !important;
         border-right: 1px solid #e2e8f0 !important;
@@ -99,28 +124,7 @@ st.markdown("""
         color: #1e293b !important;
     }
 
-    /* Tabs Styling */
-    .stTabs [data-baseweb="tab-list"] {
-        background-color: #e2e8f0 !important;
-        padding: 4px !important;
-        border-radius: 10px !important;
-        gap: 4px !important;
-    }
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 8px !important;
-        padding: 8px 16px !important;
-        font-weight: 700 !important;
-        color: #475569 !important;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #4f46e5 !important;
-        color: #ffffff !important;
-    }
-    .stTabs [aria-selected="true"] * {
-        color: #ffffff !important;
-    }
-
-    /* Buttons */
+    /* BUTTONS */
     .stButton > button[kind="primary"] {
         background-color: #4f46e5 !important;
         color: #ffffff !important;
@@ -133,7 +137,7 @@ st.markdown("""
         color: #ffffff !important;
     }
 
-    /* Sidebar Green Validate Button */
+    /* SIDEBAR GREEN VALIDATE BUTTON */
     .st-key-btn_validate > button {
         background-color: #10b981 !important;
         color: #ffffff !important;
@@ -318,11 +322,11 @@ def save_to_excel_with_formatting(df_to_save, filepath, sheet_name="Chantier Pri
         return False, f"❌ Erreur : {e}"
 
 # ==========================================
-# 2. HEADER TOP BAR (EXECUTIVE DASHBOARD)
+# 2. HEADER TOP BAR (INTEGRATED DASHBOARD)
 # ==========================================
 chantiers_existants = get_sheet_names(chemin_excel_defaut)
 
-col_h1, col_h2 = st.columns([3, 1])
+col_h1, col_h2 = st.columns([2.8, 1.2])
 
 with col_h1:
     st.markdown('''
@@ -333,11 +337,9 @@ with col_h1:
     ''', unsafe_allow_html=True)
 
 with col_h2:
-    st.markdown("<div style='font-size:12px; font-weight:700; color:#475569; margin-bottom:4px;'>🏗️ CHANTIER ACTIF :</div>", unsafe_allow_html=True)
     chantier_actif = st.selectbox(
-        "Sélection du Chantier",
+        "🏗️ CHANTIER ACTIF :",
         options=chantiers_existants,
-        label_visibility="collapsed",
         key="topbar_chantier_select"
     )
 
@@ -392,16 +394,16 @@ if st.sidebar.button("✓ Valider le compte rendu", key="btn_validate", type="se
 # 4. INTERFACE PRINCIPALE (WORKSPACE)
 # ==========================================
 st.markdown(f"<h2 style='color:#0f172a; font-weight:800; margin-top:0;'>Chantier : <span style='color:#4f46e5;'>{chantier_actif}</span></h2>", unsafe_allow_html=True)
-st.markdown(f"<span style='color: #475569; font-weight: 600; font-size:14px;'>Filtre actif : <b style='color:#0f172a;'>{nature_selectionnee_sidebar}</b></span>", unsafe_allow_html=True)
+st.markdown(f"<span style='color: #475569; font-weight: 700; font-size:14px;'>Filtre actif : <b style='color:#0f172a;'>{nature_selectionnee_sidebar}</b></span>", unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
 if df is not None:
-    tab1, tab2 = st.tabs(["📝 **Saisie d'Avancement**", "📊 **Suivi des Tâches & Exports (Word / PDF)**"])
+    tab1, tab2 = st.tabs(["📝 Saisie d'Avancement", "📊 Suivi des Tâches & Exports (Word / PDF)"])
 
     # TAB 1: FORMULAIRE DE SAISIE
     with tab1:
-        st.markdown("#### ➕ **Nouvelle entrée d'avancement**")
+        st.markdown("<h3 style='color:#0f172a; font-weight:800;'>➕ Nouvelle entrée d'avancement</h3>", unsafe_allow_html=True)
         
         default_idx = 0
         if nature_selectionnee_sidebar != "📌 Tous les travaux":
@@ -444,7 +446,7 @@ if df is not None:
 
     # TAB 2: TABLEAU DES TÂCHES ET EXPORTS
     with tab2:
-        st.markdown("#### 🔍 **Filtrer & Sélectionner les Tâches**")
+        st.markdown("<h3 style='color:#0f172a; font-weight:800;'>🔍 Filtrer & Sélectionner les Tâches</h3>", unsafe_allow_html=True)
         col_partie_name = COL_PARTIE if COL_PARTIE in df.columns else "PARTIE D meOUVRAGE"
         
         natures_uniques = sorted([str(x) for x in df['TITRE DE LA NATURE DES TRAVAUX'].unique() if str(x).strip()])

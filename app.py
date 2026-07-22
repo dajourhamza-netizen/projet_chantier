@@ -15,7 +15,7 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.utils import get_column_letter
 
 # ==========================================
-# 0. CONFIGURATION & STYLES (BATISCRIPT UI)
+# 0. CONFIGURATION & NEW DASHBOARD STYLE
 # ==========================================
 st.set_page_config(
     page_title="BATISCRIPT - Suivi Chantier",
@@ -23,105 +23,106 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS matching original Batiscript design with Construction Background Image
+# Modern Slate & Indigo Dashboard Theme (100% Reliable, No External Images)
 st.markdown("""
 <style>
-    /* Background Image with Construction Theme & Semi-Transparent Overlay */
+    /* App Background */
     .stApp {
-        background: linear-gradient(rgba(244, 245, 248, 0.90), rgba(244, 245, 248, 0.90)),
-                    url('https://images.unsplash.com/photo-1541888946425-d0fbb186a5b3?auto=format&fit=crop&w=1920&q=80') !important;
-        background-size: cover !important;
-        background-attachment: fixed !important;
-        background-position: center !important;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        background-color: #f8fafc !important;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
-    /* Adjust Streamlit Header Padding */
-    header[data-testid="stHeader"] {
-        background-color: transparent !important;
-        z-index: 1 !important;
+    /* Top Bar Header Container */
+    .top-header-bar {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        padding: 14px 28px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 25px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     }
 
-    .block-container {
-        padding-top: 2rem !important;
-        padding-bottom: 2rem !important;
+    .top-header-title {
+        color: #ffffff;
+        font-size: 22px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
 
-    /* Header Bar Container (Dark Navy Batiscript Style) */
-    div.element-container:has(div.header-marker) + div[data-testid="stHorizontalBlock"] {
-        background-color: #1c2237 !important;
-        padding: 10px 24px !important;
-        border-radius: 8px !important;
-        margin-bottom: 25px !important;
-        align-items: center !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    .top-header-role {
+        background-color: rgba(245, 158, 11, 0.15);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 700;
     }
 
-    /* Style the selectbox inside top bar */
+    /* Selectbox custom fit inside layout */
     div[data-testid="stSelectbox"] div[data-baseweb="select"] {
-        background-color: #2a324b !important;
-        border-radius: 6px !important;
-        border: 1px solid #4a5568 !important;
-    }
-    div[data-testid="stSelectbox"] div[data-baseweb="select"] * {
-        color: #ffffff !important;
-        font-weight: 600 !important;
-    }
-
-    /* Sidebar Styling */
-    section[data-testid="stSidebar"] {
-        background-color: rgba(244, 245, 248, 0.95) !important;
-        border-right: 1px solid #e2e8f0;
-        backdrop-filter: blur(6px);
-    }
-    section[data-testid="stSidebar"] * {
-        color: #2d3748 !important;
-    }
-
-    /* Green Bottom Action Button */
-    .st-key-btn_validate > button {
-        background-color: #27c383 !important;
-        color: #ffffff !important;
-        border: none !important;
+        background-color: #ffffff !important;
         border-radius: 8px !important;
-        font-weight: 700 !important;
-        padding: 10px 20px !important;
-        width: 100%;
-        box-shadow: 0 2px 4px rgba(39, 195, 131, 0.2);
-    }
-    .st-key-btn_validate > button:hover {
-        background-color: #21a971 !important;
+        border: 1px solid #cbd5e1 !important;
     }
 
-    /* Tabs Layout Styling */
+    /* Sidebar Clean Styling */
+    section[data-testid="stSidebar"] {
+        background-color: #ffffff !important;
+        border-right: 1px solid #e2e8f0 !important;
+    }
+    
+    /* Modern Card Layouts */
+    div[data-testid="stVerticalBlock"] > div:has(div.card-marker) {
+        background-color: #ffffff;
+        padding: 24px;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    }
+
+    /* Tab Styling */
     .stTabs [data-baseweb="tab-list"] {
-        background-color: rgba(237, 242, 247, 0.9);
-        padding: 5px;
+        background-color: #e2e8f0;
+        padding: 4px;
         border-radius: 10px;
-        gap: 6px;
+        gap: 4px;
     }
     .stTabs [data-baseweb="tab"] {
-        background-color: transparent;
         border-radius: 8px;
-        padding: 8px 18px;
-        font-weight: 700;
-        color: #4a5568;
-        border: none !important;
+        padding: 8px 16px;
+        font-weight: 600;
+        color: #475569;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #ffffff !important;
-        color: #5b58e6 !important;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        background-color: #4f46e5 !important;
+        color: #ffffff !important;
     }
 
-    /* Primary Submit Button */
+    /* Primary Buttons */
     .stButton > button[kind="primary"] {
-        background-color: #5b58e6 !important;
+        background-color: #4f46e5 !important;
+        color: #ffffff !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        border: none !important;
+        padding: 10px 20px !important;
+        box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+    }
+
+    /* Sidebar Green Validate Button */
+    .st-key-btn_validate > button {
+        background-color: #10b981 !important;
         color: #ffffff !important;
         border-radius: 8px !important;
         font-weight: 700 !important;
         border: none !important;
-        padding: 10px 22px !important;
+        width: 100%;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -296,37 +297,29 @@ def save_to_excel_with_formatting(df_to_save, filepath, sheet_name="Chantier Pri
         return False, f"❌ Erreur : {e}"
 
 # ==========================================
-# 2. HEADER TOP BAR (BATISCRIPT STYLE)
+# 2. HEADER TOP BAR (EXECUTIVE DASHBOARD)
 # ==========================================
 chantiers_existants = get_sheet_names(chemin_excel_defaut)
 
-# Marker for CSS targeting of the top bar row
-st.markdown('<div class="header-marker"></div>', unsafe_allow_html=True)
-col_tb1, col_tb2, col_tb3 = st.columns([2.5, 3, 2.5])
+# Clean High-Contrast Header Bar
+col_h1, col_h2 = st.columns([3, 1])
 
-with col_tb1:
+with col_h1:
     st.markdown('''
-    <div style="display: flex; align-items: center; height: 100%; min-height: 40px;">
-        <span style="font-size: 20px; font-weight: 900; color: #ffffff; letter-spacing: 1.2px;">🏢 BATISCRIPT</span>
+    <div class="top-header-bar">
+        <div class="top-header-title">🏢 BATISCRIPT</div>
+        <div class="top-header-role">🏅 Responsable de Qualité</div>
     </div>
     ''', unsafe_allow_html=True)
 
-with col_tb2:
+with col_h2:
+    st.markdown("<div style='font-size:12px; font-weight:700; color:#64748b; margin-bottom:4px;'>🏗️ CHANTIER ACTIF :</div>", unsafe_allow_html=True)
     chantier_actif = st.selectbox(
-        "Chantiers",
+        "Sélection du Chantier",
         options=chantiers_existants,
         label_visibility="collapsed",
         key="topbar_chantier_select"
     )
-
-with col_tb3:
-    st.markdown('''
-    <div style="display: flex; align-items: center; justify-content: flex-end; height: 100%; min-height: 40px;">
-        <span style="color: #ffffff; font-size: 14px; font-weight: 600;">
-            👤 Responsable de Qualité <span style="font-size: 10px; margin-left: 4px;">▼</span>
-        </span>
-    </div>
-    ''', unsafe_allow_html=True)
 
 # ==========================================
 # 3. SIDEBAR (NAVIGATION PAR NATURE)
@@ -378,8 +371,8 @@ if st.sidebar.button("✓ Valider le compte rendu", key="btn_validate", type="se
 # ==========================================
 # 4. INTERFACE PRINCIPALE (WORKSPACE)
 # ==========================================
-st.markdown(f"## **Chantier : {chantier_actif}**")
-st.markdown(f"<span style='color: #4a5568; font-weight: 600;'>Filtre actif : <b>{nature_selectionnee_sidebar}</b></span>", unsafe_allow_html=True)
+st.markdown(f"<h2 style='color:#0f172a; font-weight:800; margin-top:0;'>Chantier : <span style='color:#4f46e5;'>{chantier_actif}</span></h2>", unsafe_allow_html=True)
+st.markdown(f"<span style='color: #64748b; font-weight: 600; font-size:14px;'>Filtre actif : <b style='color:#0f172a;'>{nature_selectionnee_sidebar}</b></span>", unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 

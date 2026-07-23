@@ -295,6 +295,16 @@ def save_to_excel_with_formatting(df_to_save, filepath, sheet_name="Chantier Pri
     except Exception as e:
         return False, f"❌ Erreur : {e}"
 
+def get_col_val(row, *candidates):
+    """Extraction intelligente des valeurs pour parer aux fautes d'orthographe/espaces dans Excel."""
+    for c in candidates:
+        for col in row.index:
+            if str(col).strip().lower() == str(c).strip().lower():
+                val = str(row[col]).strip()
+                if val and val.lower() != "nan":
+                    return val
+    return ""
+
 # ==========================================
 # 2. BARRE LATÉRALE (SIDEBAR)
 # ==========================================
@@ -358,7 +368,8 @@ if df is not None:
     with k1:
         st.markdown(f'<div class="kpi-card"><div class="kpi-value">{len(df)}</div><div class="kpi-label">📝 Fiches Enregistrées</div></div>', unsafe_allow_html=True)
     with k2:
-        nb_natures = df['TITRE DE LA NATURE DES TRAVAUX'].nunique() if 'TITRE DE LA NATURE DES TRAVAUX' in df.columns else 0
+        col_nat = "TITRE DE LA NATURE DES TRAVAUX" if "TITRE DE LA NATURE DES TRAVAUX" in df.columns else df.columns[1] if len(df.columns) > 1 else ""
+        nb_natures = df[col_nat].nunique() if col_nat in df.columns else 0
         st.markdown(f'<div class="kpi-card"><div class="kpi-value">{nb_natures}</div><div class="kpi-label">🚜 Natures de Travaux</div></div>', unsafe_allow_html=True)
     with k3:
         col_p = COL_PARTIE if COL_PARTIE in df.columns else "PARTIE D meOUVRAGE"
@@ -421,9 +432,10 @@ if df is not None:
 
         with st.expander("🔻 **Filtres de Recherche Avancés**", expanded=False):
             col_partie_name = COL_PARTIE if COL_PARTIE in df.columns else "PARTIE D meOUVRAGE"
-            
-            natures_uniques = sorted([str(x) for x in df['TITRE DE LA NATURE DES TRAVAUX'].unique() if str(x).strip()])
-            parties_uniques = sorted([str(x) for x in df[col_partie_name].unique() if str(x).strip()])
+            col_nat_name = "TITRE DE LA NATURE DES TRAVAUX" if "TITRE DE LA NATURE DES TRAVAUX" in df.columns else df.columns[1] if len(df.columns) > 1 else ""
+
+            natures_uniques = sorted([str(x) for x in df[col_nat_name].unique() if str(x).strip()]) if col_nat_name in df.columns else []
+            parties_uniques = sorted([str(x) for x in df[col_partie_name].unique() if str(x).strip()]) if col_partie_name in df.columns else []
 
             cf1, cf2 = st.columns(2)
             with cf1:
@@ -435,9 +447,9 @@ if df is not None:
 
         # Application Filtres
         df_filtered = df.copy()
-        if filter_nature:
-            df_filtered = df_filtered[df_filtered['TITRE DE LA NATURE DES TRAVAUX'].isin(filter_nature)]
-        if filter_partie:
+        if filter_nature and col_nat_name in df_filtered.columns:
+            df_filtered = df_filtered[df_filtered[col_nat_name].isin(filter_nature)]
+        if filter_partie and col_partie_name in df_filtered.columns:
             df_filtered = df_filtered[df_filtered[col_partie_name].isin(filter_partie)]
         if search_text:
             mask = df_filtered.apply(lambda col: col.astype(str).str.contains(search_text, case=False, na=False)).any(axis=1)
@@ -482,7 +494,7 @@ if df is not None:
                 
                 elif nb_selections == 1:
                     ligne_choisie = lignes_selectionnees.iloc[0]
-                    nom_modele = str(ligne_choisie.get('TITRE DE LA NATURE DES TRAVAUX', '')).strip()
+                    nom_modele = get_col_val(ligne_choisie, "TITRE DE LA NATURE DES TRAVAUX", "NATURE")
                     chemin_modele = trouver_modele_word(nom_modele)
 
                     if not chemin_modele:
@@ -490,22 +502,20 @@ if df is not None:
                     else:
                         try:
                             with st.spinner("⏳ Génération Word & PDF..."):
-                                val_partie = ligne_choisie.get(COL_PARTIE, ligne_choisie.get("PARTIE D meOUVRAGE", ''))
                                 contexte = {
-                                    'NATURE': str(ligne_choisie.get('TITRE DE LA NATURE DES TRAVAUX', '')),
-                                    'REF': str(ligne_choisie.get('RÉFÉRENCE DE PROCÉDURE', '')),
-                                    'PARTIE': str(val_partie),
-                                    'SITUATION': str(ligne_choisie.get('SITUATION', '')),
-                                    'PIECES': text_to_richtext(ligne_choisie.get('PIÈCES JOINTES', '')),
-                                    'DATE': str(ligne_choisie.get('DATE', '')),
-                                    'ACTIVITE': text_to_richtext(ligne_choisie.get('ACTIVITÉ RÉALISÉE', '')),
-                                    'ESSAI': str(ligne_choisie.get('ÉSSAI/ CONTRÔLE RÉALISÉE', ''))
+                                    'NATURE': get_col_val(ligne_choisie, "TITRE DE LA NATURE DES TRAVAUX", "NATURE"),
+                                    'REF': get_col_val(ligne_choisie, "RÉFÉRENCE DE PROCÉDURE", "REF"),
+                                    'PARTIE': get_col_val(ligne_choisie, "PARTIE D'OUVRAGE", "PARTIE D meOUVRAGE", "PARTIE"),
+                                    'SITUATION': get_col_val(ligne_choisie, "SITUATION", "PK"),
+                                    'PIECES': text_to_richtext(get_col_val(ligne_choisie, "PIÈCES JOINTES", "PIECES")),
+                                    'DATE': get_col_val(ligne_choisie, "DATE"),
+                                    'ACTIVITE': text_to_richtext(get_col_val(ligne_choisie, "ACTIVITÉ RÉALISÉE", "ACTIVITE")),
+                                    'ESSAI': get_col_val(ligne_choisie, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI")
                                 }
                                 docx_bytes, pdf_bytes = generer_docx_et_pdf_bytes(chemin_modele, contexte)
-                                
                                 nom_base = construire_nom_pdf(ligne_choisie).replace(".pdf", "")
 
-                                st.success("✅ Fiches générées !")
+                                st.success("✅ Fiche générée !")
                                 c_down1, c_down2 = st.columns(2)
                                 with c_down1:
                                     st.download_button("📝 Télécharger WORD", data=docx_bytes, file_name=f"{nom_base}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
@@ -521,23 +531,22 @@ if df is not None:
                     with st.spinner(f"⏳ Génération du Pack ({nb_selections} fiches)..."):
                         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
                             for idx, row in lignes_selectionnees.iterrows():
-                                nom_modele = str(row.get('TITRE DE LA NATURE DES TRAVAUX', '')).strip()
+                                nom_modele = get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE")
                                 chemin_modele = trouver_modele_word(nom_modele)
 
                                 if not chemin_modele:
                                     continue
 
                                 try:
-                                    val_partie = row.get(COL_PARTIE, row.get("PARTIE D meOUVRAGE", ''))
                                     contexte = {
-                                        'NATURE': str(row.get('TITRE DE LA NATURE DES TRAVAUX', '')),
-                                        'REF': str(row.get('RÉFÉRENCE DE PROCÉDURE', '')),
-                                        'PARTIE': str(val_partie),
-                                        'SITUATION': str(row.get('SITUATION', '')),
-                                        'PIECES': text_to_richtext(row.get('PIÈCES JOINTES', '')),
-                                        'DATE': str(row.get('DATE', '')),
-                                        'ACTIVITE': text_to_richtext(row.get('ACTIVITÉ RÉALISÉE', '')),
-                                        'ESSAI': str(row.get('ÉSSAI/ CONTRÔLE RÉALISÉE', ''))
+                                        'NATURE': get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE"),
+                                        'REF': get_col_val(row, "RÉFÉRENCE DE PROCÉDURE", "REF"),
+                                        'PARTIE': get_col_val(row, "PARTIE D'OUVRAGE", "PARTIE D meOUVRAGE", "PARTIE"),
+                                        'SITUATION': get_col_val(row, "SITUATION", "PK"),
+                                        'PIECES': text_to_richtext(get_col_val(row, "PIÈCES JOINTES", "PIECES")),
+                                        'DATE': get_col_val(row, "DATE"),
+                                        'ACTIVITE': text_to_richtext(get_col_val(row, "ACTIVITÉ RÉALISÉE", "ACTIVITE")),
+                                        'ESSAI': get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI")
                                     }
                                     docx_bytes, pdf_bytes = generer_docx_et_pdf_bytes(chemin_modele, contexte)
                                     nom_base = construire_nom_pdf(row).replace(".pdf", "")
@@ -562,70 +571,32 @@ if df is not None:
     # -------------------------------------------------------------
     # TAB 3 : DEMANDES D'INTERVENTION (DI) PAR JOUR
     # -------------------------------------------------------------
-   # OPTION 2 : FICHE DE SYNTHÈSE DI UNIQUE POUR LE JOUR
-with cdi2:
-    st.markdown("##### 📄 **Option 2 : DI Consolidation Journalière**")
-    st.caption("Génère une seule Demande d'Intervention globale regroupant la liste des travaux du jour.")
+    with tab3:
+        st.markdown("##### 📅 **Génération des Demandes d'Intervention (DI) par Jour**")
+        
+        # Identification de la colonne Date
+        col_date_name = None
+        for c in df.columns:
+            if str(c).strip().lower() == "date":
+                col_date_name = c
+                break
 
-    modele_di_global = (
-        trouver_modele_word("Demande d'intervention") or 
-        trouver_modele_word("Demande_Intervention") or 
-        trouver_modele_word("DI")
-    )
+        if col_date_name and not df.empty:
+            dates_disponibles = [str(d).strip() for d in df[col_date_name].unique() if str(d).strip() and str(d).lower() != "nan"]
+            
+            if not dates_disponibles:
+                st.warning("⚠️ Aucune date enregistrée dans ce projet.")
+            else:
+                date_choisie = st.selectbox("🗓️ **Sélectionner la date de la Demande d'Intervention :**", options=dates_disponibles)
 
-    if st.button(f"📑 Générer la DI globale du {date_choisie}", type="secondary", use_container_width=True):
-        if not modele_di_global:
-            st.warning("⚠️ Modèle introuvable. Assurez-vous que `Demande d'intervention.docx` est présent sur GitHub.")
-        else:
-            try:
-                with st.spinner("⏳ Génération de la DI globale journalière..."):
-                    
-                    # Fonction helper pour trouver la bonne colonne dans l'Excel
-                    def get_col_val(row, *candidates):
-                        for c in candidates:
-                            for col in row.index:
-                                if str(col).strip().lower() == str(c).strip().lower():
-                                    val = str(row[col]).strip()
-                                    if val and val != "nan":
-                                        return val
-                        return ""
+                df_jour = df[df[col_date_name].astype(str).str.strip() == date_choisie].copy()
 
-                    liste_activites = []
-                    for _, row in df_jour.iterrows():
-                        nature = get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE", "NATURE DES TRAVAUX")
-                        partie = get_col_val(row, "PARTIE D'OUVRAGE", "PARTIE D meOUVRAGE", "PARTIE OUVRAGE", "PARTIE")
-                        situation = get_col_val(row, "SITUATION", "PK", "LOCALISATION")
-                        activite = get_col_val(row, "ACTIVITÉ RÉALISÉE", "ACTIVITE REALISEE", "ACTIVITE")
-                        essai = get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI/ CONTROL REALISEE", "ESSAI", "CONTROLE")
-                        ref = get_col_val(row, "RÉFÉRENCE DE PROCÉDURE", "REFERENCE DE PROCEDURE", "REF")
+                st.info(f"📍 **{len(df_jour)} intervention(s) / tâche(s) programmée(s) pour la journée du {date_choisie} :**")
+                
+                st.dataframe(df_jour, use_container_width=True)
 
-                        liste_activites.append({
-                            'NATURE': nature,
-                            'PARTIE': partie,
-                            'SITUATION': situation,
-                            'ACTIVITE': activite,
-                            'ESSAI': essai,
-                            'REF': ref
-                        })
-
-                    contexte_global = {
-                        'DATE': date_choisie,
-                        'PROJET': chantier_actif,
-                        'TRAVAUX': liste_activites,
-                        'NB_TRAVAUX': len(liste_activites)
-                    }
-
-                    docx_bytes, pdf_bytes = generer_docx_et_pdf_bytes(modele_di_global, contexte_global)
-                    date_clean = date_choisie.replace("/", "-")
-
-                    st.success(f"✅ DI Globale générée avec {len(liste_activites)} ligne(s) !")
-                    g_col1, g_col2 = st.columns(2)
-                    with g_col1:
-                        st.download_button("📝 WORD (DI Globale)", data=docx_bytes, file_name=f"DI_Globale_{date_clean}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
-                    with g_col2:
-                        st.download_button("📕 PDF (DI Globale)", data=pdf_bytes, file_name=f"DI_Globale_{date_clean}.pdf", mime="application/pdf", use_container_width=True)
-            except Exception as e:
-                st.error(f"❌ Erreur lors de la génération : {e}")
+                st.markdown("---")
+                cdi1, cdi2 = st.columns(2)
 
                 # OPTION 1 : PACK ZIP DU JOUR
                 with cdi1:
@@ -639,23 +610,22 @@ with cdi2:
                         with st.spinner(f"⏳ Génération des DI pour le {date_choisie}..."):
                             with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
                                 for idx, row in df_jour.iterrows():
-                                    nom_modele = str(row.get('TITRE DE LA NATURE DES TRAVAUX', '')).strip()
+                                    nom_modele = get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE")
                                     chemin_modele = trouver_modele_word(nom_modele)
 
                                     if not chemin_modele:
                                         continue
 
                                     try:
-                                        val_partie = row.get(COL_PARTIE, row.get("PARTIE D meOUVRAGE", ''))
                                         contexte = {
-                                            'NATURE': str(row.get('TITRE DE LA NATURE DES TRAVAUX', '')),
-                                            'REF': str(row.get('RÉFÉRENCE DE PROCÉDURE', '')),
-                                            'PARTIE': str(val_partie),
-                                            'SITUATION': str(row.get('SITUATION', '')),
-                                            'PIECES': text_to_richtext(row.get('PIÈCES JOINTES', '')),
-                                            'DATE': str(row.get('DATE', '')),
-                                            'ACTIVITE': text_to_richtext(row.get('ACTIVITÉ RÉALISÉE', '')),
-                                            'ESSAI': str(row.get('ÉSSAI/ CONTRÔLE RÉALISÉE', ''))
+                                            'NATURE': get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE"),
+                                            'REF': get_col_val(row, "RÉFÉRENCE DE PROCÉDURE", "REF"),
+                                            'PARTIE': get_col_val(row, "PARTIE D'OUVRAGE", "PARTIE D meOUVRAGE", "PARTIE"),
+                                            'SITUATION': get_col_val(row, "SITUATION", "PK"),
+                                            'PIECES': text_to_richtext(get_col_val(row, "PIÈCES JOINTES", "PIECES")),
+                                            'DATE': date_choisie,
+                                            'ACTIVITE': text_to_richtext(get_col_val(row, "ACTIVITÉ RÉALISÉE", "ACTIVITE")),
+                                            'ESSAI': get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI")
                                         }
                                         docx_bytes, pdf_bytes = generer_docx_et_pdf_bytes(chemin_modele, contexte)
                                         nom_base = construire_nom_pdf(row).replace(".pdf", "")
@@ -680,35 +650,39 @@ with cdi2:
                         else:
                             st.error("❌ Aucun modèle Word correspondant aux natures de travaux n'a été trouvé.")
 
-                # OPTION 2 : FICHE DE SYNTHÈSE DI UNIQUE POUR LE JOUR
+                # OPTION 2 : FICHE DE SYNTHÈSE DI UNIQUE POUR LE JOUR (CORRIGÉE & ÉPROUVÉE)
                 with cdi2:
                     st.markdown("##### 📄 **Option 2 : DI Consolidation Journalière**")
                     st.caption("Génère une seule Demande d'Intervention globale regroupant la liste des travaux du jour.")
 
-                    # Recherche multi-noms pour s'adapter à "Demande d'intervention.docx", "Demande_Intervention.docx" ou "DI.docx"
                     modele_di_global = (
                         trouver_modele_word("Demande d'intervention") or 
                         trouver_modele_word("Demande_Intervention") or 
-                        trouver_modele_word("Demande d intervention") or 
                         trouver_modele_word("DI")
                     )
 
                     if st.button(f"📑 Générer la DI globale du {date_choisie}", type="secondary", use_container_width=True):
                         if not modele_di_global:
-                            st.warning("⚠️ Modèle introuvable. Veuillez vérifier que `Demande d'intervention.docx` est présent sur GitHub.")
+                            st.warning("⚠️ Modèle introuvable. Assurez-vous que `Demande d'intervention.docx` est présent sur GitHub.")
                         else:
                             try:
                                 with st.spinner("⏳ Génération de la DI globale journalière..."):
                                     liste_activites = []
                                     for _, row in df_jour.iterrows():
-                                        val_partie = row.get(COL_PARTIE, row.get("PARTIE D meOUVRAGE", ''))
+                                        nature = get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE", "NATURE DES TRAVAUX")
+                                        partie = get_col_val(row, "PARTIE D'OUVRAGE", "PARTIE D meOUVRAGE", "PARTIE OUVRAGE", "PARTIE")
+                                        situation = get_col_val(row, "SITUATION", "PK", "LOCALISATION")
+                                        activite = get_col_val(row, "ACTIVITÉ RÉALISÉE", "ACTIVITE REALISEE", "ACTIVITE")
+                                        essai = get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI/ CONTROL REALISEE", "ESSAI", "CONTROLE")
+                                        ref = get_col_val(row, "RÉFÉRENCE DE PROCÉDURE", "REFERENCE DE PROCEDURE", "REF")
+
                                         liste_activites.append({
-                                            'NATURE': str(row.get('TITRE DE LA NATURE DES TRAVAUX', '')),
-                                            'PARTIE': str(val_partie),
-                                            'SITUATION': str(row.get('SITUATION', '')),
-                                            'ACTIVITE': str(row.get('ACTIVITÉ RÉALISÉE', '')),
-                                            'ESSAI': str(row.get('ÉSSAI/ CONTRÔLE RÉALISÉE', '')),
-                                            'REF': str(row.get('RÉFÉRENCE DE PROCÉDURE', ''))
+                                            'NATURE': nature,
+                                            'PARTIE': partie,
+                                            'SITUATION': situation,
+                                            'ACTIVITE': activite,
+                                            'ESSAI': essai,
+                                            'REF': ref
                                         })
 
                                     contexte_global = {
@@ -721,14 +695,14 @@ with cdi2:
                                     docx_bytes, pdf_bytes = generer_docx_et_pdf_bytes(modele_di_global, contexte_global)
                                     date_clean = date_choisie.replace("/", "-")
 
-                                    st.success("✅ DI Globale générée !")
+                                    st.success(f"✅ DI Globale générée avec {len(liste_activites)} ligne(s) !")
                                     g_col1, g_col2 = st.columns(2)
                                     with g_col1:
                                         st.download_button("📝 WORD (DI Globale)", data=docx_bytes, file_name=f"DI_Globale_{date_clean}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
                                     with g_col2:
                                         st.download_button("📕 PDF (DI Globale)", data=pdf_bytes, file_name=f"DI_Globale_{date_clean}.pdf", mime="application/pdf", use_container_width=True)
                             except Exception as e:
-                                st.error(f"❌ Erreur : {e}")
+                                st.error(f"❌ Erreur lors de la génération : {e}")
 
         else:
             st.info("💡 Aucune donnée disponible pour le moment. Veuillez saisir des travaux ou charger un fichier Excel.")

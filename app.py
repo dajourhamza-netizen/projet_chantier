@@ -75,7 +75,7 @@ COLUMNS_TEMPLATE = [
     "RÉFÉRENCE DE PROCÉDURE", "PIÈCES JOINTES"
 ]
 
-# 📋 Dictionnaire complet selon votre tableau d'image
+# 📋 Dictionnaire complet
 LIAISONS = {
     "ARASE DE PST": {
         "procedure": "TER-PEX-05-00",
@@ -306,13 +306,35 @@ def save_to_excel_with_formatting(df_to_save, filepath, sheet_name="Chantier Pri
         return False, f"❌ Erreur : {e}"
 
 # ==========================================
-# 2. BARRE LATÉRALE (SIDEBAR)
+# 2. BARRE LATÉRALE (SIDEBAR) & GESTION PROJETS
 # ==========================================
 st.sidebar.markdown("### 🏗️ **Gestion de Chantier**")
 
 chantiers_existants = get_sheet_names(chemin_excel_defaut)
 chantier_actif = st.sidebar.selectbox("📌 **Projet Actif :**", options=chantiers_existants)
 
+st.sidebar.markdown("---")
+
+# ➕ Section Création d'un Nouveau Projet
+with st.sidebar.expander("➕ **Créer / Ajouter un Nouveau Projet**", expanded=False):
+    nouveau_projet_nom = st.text_input("Nom du nouveau projet / chantier :", key="new_proj_input")
+    if st.button("✨ Créer le Projet", type="primary", key="btn_create_proj", use_container_width=True):
+        nom_clean = nouveau_projet_nom.strip()
+        if nom_clean:
+            if nom_clean in chantiers_existants:
+                st.sidebar.error("⚠️ Ce projet existe déjà !")
+            else:
+                df_vide = pd.DataFrame(columns=COLUMNS_TEMPLATE)
+                success, msg = save_to_excel_with_formatting(df_vide, chemin_excel_defaut, sheet_name=nom_clean)
+                if success:
+                    st.sidebar.success(f"✅ Projet '{nom_clean}' créé !")
+                    st.rerun()
+                else:
+                    st.sidebar.error(msg)
+        else:
+            st.sidebar.warning("⚠️ Veuillez entrer un اسم صحيح.")
+
+# Chargement des données du projet actif
 df = None
 if os.path.exists(chemin_excel_defaut):
     try:
@@ -357,10 +379,19 @@ if df is not None:
             situation = st.text_input("📍 Situation / PK", placeholder="Ex: PK 1+120 AU PK 1+220")
         with col2:
             activite = st.text_area("🚜 Activité réalisée", height=80)
+            
             essai = st.selectbox("🧪 Essai / Contrôle réalisé", options=[
-                "Aucun", "ESSAI À LA PLAQUE", "DENSITÉ", "ESSAI À LA PLAQUE + DENSITÉ",
-                "TENEUR EN EAU", "IDENTIFICATION DES MATERIAUX", "PRELEVEMENT"
+                "Aucun",
+                "TENEUR EN EAU",
+                "CAMPACITÉ",
+                "ESSAI À LA PLAQUE",
+                "ESSAI À LA PLAQUE + CAMPACITÉ",
+                "PRELEVEMENT APRES COMPACTAGE",
+                "PRELEVEMENT AVANT COMPACTAGE",
+                "IDENTIFICATION DES MATERIAUX",
+                "PRELEVEMENT"
             ])
+            
             procedure = st.text_input("📑 Référence procédure", value=info_liaison["procedure"])
             pieces_jointes = st.text_area("📎 Pièces jointes", value=info_liaison["pieces"], height=100)
 
@@ -385,12 +416,47 @@ if df is not None:
                 st.error(msg)
 
     # -------------------------------------------------------------
-    # TAB 2 : REGISTRE
+    # TAB 2 : REGISTRE & FILTRES
     # -------------------------------------------------------------
     with tab2:
-        st.markdown("##### 🔍 **Registre des Travaux & Exportation**")
+        st.markdown("##### 🔍 **Registre des Travaux, Filtrage & Exportation**")
 
-        df_editor = df.copy()
+        # 🎯 SECTION FILTRES DE RECHERCHE
+        with st.expander("🎯 **Filtres de Recherche & Tri**", expanded=True):
+            col_f1, col_f2, col_f3 = st.columns(3)
+            
+            with col_f1:
+                natures_dispo = ["Toutes"] + list(sorted([str(n) for n in df["TITRE DE LA NATURE DES TRAVAUX"].unique() if str(n).strip()]))
+                filtre_nature = st.selectbox("📌 Filtrer par Nature :", options=natures_dispo)
+            
+            with col_f2:
+                dates_dispo = ["Toutes"] + sorted([str(d).strip() for d in df["DATE"].unique() if str(d).strip() and str(d).lower() != "nan"])
+                filtre_date = st.selectbox("🗓️ Filtrer par Date :", options=dates_dispo)
+                
+            with col_f3:
+                recherche_texte = st.text_input("🔍 Recherche globale (Partie / PK / Activité) :", placeholder="Tapez un mot-clé...")
+
+        # Application des filtres
+        df_filtre = df.copy()
+
+        if filtre_nature != "Toutes":
+            df_filtre = df_filtre[df_filtre["TITRE DE LA NATURE DES TRAVAUX"] == filtre_nature]
+
+        if filtre_date != "Toutes":
+            df_filtre = df_filtre[df_filtre["DATE"].astype(str).str.strip() == filtre_date]
+
+        if recherche_texte.strip():
+            mots = recherche_texte.strip().lower()
+            mask = (
+                df_filtre[COL_PARTIE].astype(str).str.lower().str.contains(mots) |
+                df_filtre["SITUATION"].astype(str).str.lower().str.contains(mots) |
+                df_filtre["ACTIVITÉ RÉALISÉE"].astype(str).str.lower().str.contains(mots)
+            )
+            df_filtre = df_filtre[mask]
+
+        st.caption(f"📊 Résultats affichés : **{len(df_filtre)}** / {len(df)} fiches")
+
+        df_editor = df_filtre.copy()
         if "Imprimer" not in df_editor.columns:
             df_editor.insert(0, "Imprimer", False)
 
@@ -405,8 +471,13 @@ if df is not None:
         col_act1, col_act2 = st.columns(2)
 
         with col_act1:
-            if st.button("💾 Enregistrer toutes les modifications dans Excel", type="secondary", use_container_width=True):
-                success, msg = save_to_excel_with_formatting(edited_df, chemin_excel_defaut, sheet_name=chantier_actif)
+            if st.button("💾 Enregistrer les modifications dans Excel", type="secondary", use_container_width=True):
+                # Mettre à jour le DataFrame principal sans perdre les lignes non filtrées
+                df_sauvegarde = df.copy()
+                edited_clean = edited_df.drop(columns=["Imprimer"], errors="ignore")
+                df_sauvegarde.loc[edited_clean.index] = edited_clean
+
+                success, msg = save_to_excel_with_formatting(df_sauvegarde, chemin_excel_defaut, sheet_name=chantier_actif)
                 if success:
                     st.success(msg)
                     st.rerun()

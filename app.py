@@ -1,713 +1,317 @@
-import streamlit as st
-import pandas as pd
-from datetime import datetime
 import os
-import re
 import io
-import unicodedata
 import zipfile
 import subprocess
 import tempfile
-import shutil
-
-from docxtpl import DocxTemplate, RichText
-from openpyxl.worksheet.table import Table, TableStyleInfo
-from openpyxl.utils import get_column_letter
+import pandas as pd
+import streamlit as st
+from docxtpl import DocxTemplate
 
 # ==========================================
-# 0. CONFIGURATION DE LA PAGE ET STYLES CSS
+# CONFIGURATION DE LA PAGE STREAMLIT
 # ==========================================
 st.set_page_config(
-    page_title="Suivi Chantier - Génie Civil & Routes",
+    page_title="Suivi Chantier - Demandes d'Intervention",
     page_icon="🏗️",
     layout="wide"
 )
 
-# 🎨 Custom Civil Engineering / Highway CSS Theme
-st.markdown("""
-<style>
-    /* Background General */
-    .stApp {
-        background-color: #f8fafc;
-    }
-    
-    /* Main Banner Header */
-    .gc-header {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        color: #ffffff;
-        padding: 22px 28px;
-        border-radius: 12px;
-        border-left: 8px solid #ff6b00; /* Safety Orange Accent */
-        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.08);
-        margin-bottom: 25px;
-    }
-    .gc-header h1 {
-        color: #ffffff !important;
-        font-size: 26px !important;
-        font-weight: 800 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        letter-spacing: 0.5px;
-    }
-    .gc-header p {
-        color: #94a3b8;
-        margin: 6px 0 0 0;
-        font-size: 14px;
-    }
+st.title("🏗️ Suivi Chantier - Générateur de Demandes d'Intervention (DI)")
+st.write("---")
 
-    /* KPI Cards Styling */
-    .kpi-card {
-        background-color: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-top: 4px solid #ff6b00;
-        border-radius: 10px;
-        padding: 16px;
-        text-align: center;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.03);
-    }
-    .kpi-value {
-        font-size: 24px;
-        font-weight: 800;
-        color: #0f172a;
-    }
-    .kpi-label {
-        font-size: 11px;
-        font-weight: 600;
-        color: #64748b;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-top: 4px;
-    }
-
-    /* Customizing Buttons */
-    .stButton > button[kind="primary"] {
-        background-color: #ff6b00 !important;
-        color: #ffffff !important;
-        border: none !important;
-        border-radius: 8px !important;
-        font-weight: 700 !important;
-        padding: 10px 20px !important;
-        transition: all 0.2s ease-in-out !important;
-    }
-    .stButton > button[kind="primary"]:hover {
-        background-color: #e05e00 !important;
-        box-shadow: 0 4px 12px rgba(255, 107, 0, 0.25) !important;
-    }
-
-    /* Sidebar Customization */
-    section[data-testid="stSidebar"] {
-        background-color: #0f172a !important;
-        color: #ffffff !important;
-    }
-    section[data-testid="stSidebar"] .stMarkdown h1, 
-    section[data-testid="stSidebar"] .stMarkdown h2, 
-    section[data-testid="stSidebar"] .stMarkdown h3,
-    section[data-testid="stSidebar"] label {
-        color: #f1f5f9 !important;
-    }
-
-    /* Tab Design */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        background-color: #ffffff;
-        border-radius: 8px;
-        padding: 10px 20px;
-        border: 1px solid #e2e8f0;
-        font-weight: 700;
-        color: #475569;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #ff6b00 !important;
-        color: #ffffff !important;
-        border-color: #ff6b00 !important;
-    }
-</style>
-""", unsafe_allow_html=True)
+# Répertoire racine du projet (GitHub)
+DOSSIER_CHANTIER = os.path.dirname(os.path.abspath(__file__))
 
 # ==========================================
-# 1. FONCTIONS ET INITIALISATION
+# FONCTIONS UTILITAIRES & HELPER FUNCTIONS
 # ==========================================
-def text_to_richtext(text):
-    if not text or pd.isna(text):
-        return ""
-    rt = RichText()
-    lines = str(text).split('\n')
-    for i, line in enumerate(lines):
-        rt.add(line)
-        if i < len(lines) - 1:
-            rt.add('\n')
-    return rt
 
-DOSSIER_CHANTIER = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
-
-chemin_excel_defaut = os.path.join(DOSSIER_CHANTIER, "suivi .xlsx")
-if not os.path.exists(chemin_excel_defaut):
-    chemin_excel_defaut = os.path.join(DOSSIER_CHANTIER, "suivi.xlsx")
-
-COL_PARTIE = "PARTIE D'OUVRAGE"
-
-COLUMNS_TEMPLATE = [
-    "DATE", "TITRE DE LA NATURE DES TRAVAUX", COL_PARTIE, 
-    "SITUATION", "ACTIVITÉ RÉALISÉE", "ÉSSAI/ CONTRÔLE RÉALISÉE", 
-    "RÉFÉRENCE DE PROCÉDURE", "PIÈCES JOINTES"
-]
-
-LIAISONS = {
-    "ARASE DE PST": {"procedure": "TER-PEX-05-00", "pieces": "* Fiche de suivi de la PST\n* Fiche de réception topographique\n* PVs laboratoire"},
-    "ARASE DE TERRASSEMENT": {"procedure": "TER-PEX-03-00", "pieces": "* Fiche de contrôle des déblais\n* Fiche de réception topographique\n* PVs laboratoire"},
-    "ASSISE DE REMBLAIS PURGE": {"procedure": "TER-PEX-04-00", "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* Fiche d'identification de la purge\n* PVs laboratoire"},
-    "ASSISE DE REMBLAIS": {"procedure": "TER-PEX-04-00", "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* PVs laboratoire"},
-    "ASSISE DE REMBLAIS CDF": {"procedure": "TER-PEX-04-00", "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* PVs laboratoire"},
-    "ASSISE DE REMBLAIS CONTIGUS": {"procedure": "OVA-PEX-16-00", "pieces": "* Fiche de suivi des remblais contigus\n* Fiche de contrôle des remblais contigus\n* PVs laboratoire\n* Fiche de réception topographique"},
-    "ASSISE DE REMBLAI DE FOUILLE": {"procedure": "OVA-PEX-04-00", "pieces": "* Fiche de suivi et de contrôle des fouilles et remblaiement de fouilles\n* PVs laboratoire"},
-    "ASSISE DE REMBLAIS RENFORCE": {"procedure": "TER-PEX-13-00", "pieces": "* PV Manifold\n* PVs laboratoire\n* Fiche de réception topographique\n* Fiche de réception assise remblai renforcé"},
-    "ASSISE DRAINANTE": {"procedure": "TER-PEX-13-00", "pieces": "* Fiche de réception topographique\n* PVs laboratoire\n* Fiche de contrôle de l'assise drainante"},
-    "COUCHE DE FORME": {"procedure": "TER-PEX-09-00", "pieces": "* Fiche de suivi et de contrôle de la CDF\n* Fiche de réception topographique\n* PVs laboratoire"},
-    "DÉCAPAGE": {"procedure": "TER-PEX-02-00", "pieces": "* Fiche de suivi et de contrôle du décapage\n* Fiche des sections à décaper\n* Fiche de réception topographique"},
-    "DEGAGEMENT D'EMPRISE": {"procedure": "TER-PEX-01-00", "pieces": "* Fiche de suivi et de contrôle du dégagement des emprises\n* Fiche de réception topographique\n* Constat dégagement d'emprise"},
-    "REMBLAIS": {"procedure": "TER-PEX-04-00", "pieces": "* Fiche de suivi et de contrôle des remblais\n* PVs laboratoire"},
-    "REMBLAIS CDF": {"procedure": "TER-PEX-04-00", "pieces": "* Fiche de suivi et de contrôle des remblais\n* PVs laboratoire"},
-    "REMBLAIS CONTIGUS": {"procedure": "OVA-PEX-16-00", "pieces": "* Fiche de suivi des remblais contigus\n* Fiche de contrôle des remblais contigus\n* PVs laboratoire\n* Fiche de réception topographique"},
-    "REMBLAIS DE FOUILLE": {"procedure": "OVA-PEX-04-00", "pieces": "* Fiche de suivi et de contrôle des fouilles et remblaiement de fouilles\n* PVs laboratoire"},
-    "REMBLAIS DE FOUILLS CDF": {"procedure": "OVA-PEX-04-00", "pieces": "* Fiche de suivi et de contrôle des fouilles et remblaiement de fouilles\n* PVs laboratoire"},
-    "REMBLAIS RENFORCE": {"procedure": "TER-PEX-13-00", "pieces": "* Fiche de suivi des remblais renforcé\n* Fiche de contrôle des armatures Geostrap\n* Fiche de réception de pose des ecailles\n* PVs laboratoire"},
-    "REMBLAIS PST": {"procedure": "TER-PEX-05-00", "pieces": "* Fiche de suivi et de contrôle des remblais PST\n* PVs laboratoire"}
-}
-
-def clean_filename(text):
-    if not text:
-        return ""
-    text = str(text)
-    if text.lower().endswith('.docx'):
-        text = text[:-5]
-    text = unicodedata.normalize('NFD', text).encode('ascii', 'ignore').decode("utf-8")
-    text = re.sub(r'\s+', ' ', text)
-    return re.sub(r'[^a-zA-Z0-9]', '', text).lower()
-
-def trouver_modele_word(nom_nature):
-    target_clean = clean_filename(nom_nature)
-    if os.path.exists(DOSSIER_CHANTIER):
-        for file in os.listdir(DOSSIER_CHANTIER):
-            if file.lower().endswith('.docx') and not file.startswith('~$'):
-                if clean_filename(file) == target_clean:
-                    return os.path.join(DOSSIER_CHANTIER, file)
-    return None
-
-def construire_nom_pdf(row):
-    nature = str(row.get('TITRE DE LA NATURE DES TRAVAUX', '')).strip()
-    partie = str(row.get(COL_PARTIE, row.get("PARTIE D meOUVRAGE", ''))).strip()
-    situation = str(row.get('SITUATION', '')).strip()
-
-    nom_brut = f"{nature} - {partie} - {situation}"
-    nom_propre = re.sub(r'[\\/*?:"<>|]', "_", nom_brut)
-    nom_propre = re.sub(r'\s+', ' ', nom_propre).strip()
-    return f"{nom_propre}.pdf"
-
-def trouver_executable_libreoffice():
-    paths_windows = [
-        r"C:\Program Files\LibreOffice\program\soffice.exe",
-        r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
-    ]
-    for p in paths_windows:
-        if os.path.exists(p):
-            return p
-    for cmd in ["libreoffice", "soffice"]:
-        if shutil.which(cmd):
-            return cmd
-    return None
-
-def generer_docx_et_pdf_bytes(chemin_modele, contexte):
-    with tempfile.TemporaryDirectory() as temp_dir:
-        doc = DocxTemplate(chemin_modele)
-        doc.render(contexte)
-        
-        docx_temp_path = os.path.join(temp_dir, "temp.docx")
-        doc.save(docx_temp_path)
-        
-        with open(docx_temp_path, "rb") as f:
-            docx_bytes = f.read()
-
-        pdf_temp_path = os.path.join(temp_dir, "temp.pdf")
-        pdf_bytes = None
-
-        try:
-            from docx2pdf import convert
-            convert(docx_temp_path, pdf_temp_path)
-            if os.path.exists(pdf_temp_path):
-                with open(pdf_temp_path, "rb") as f:
-                    pdf_bytes = f.read()
-        except Exception:
-            pass
-
-        if pdf_bytes is None:
-            exe_libreoffice = trouver_executable_libreoffice()
-            if exe_libreoffice:
-                cmd = [exe_libreoffice, "--headless", "--convert-to", "pdf", docx_temp_path, "--outdir", temp_dir]
-                subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                if os.path.exists(pdf_temp_path):
-                    with open(pdf_temp_path, "rb") as f:
-                        pdf_bytes = f.read()
-
-        if pdf_bytes is None:
-            # Si aucune conversion PDF n'est possible, on renvoie docx_bytes à la place de pdf_bytes
-            pdf_bytes = docx_bytes
-
-        return docx_bytes, pdf_bytes
-
-def get_sheet_names(filepath):
-    if os.path.exists(filepath):
-        try:
-            return pd.ExcelFile(filepath).sheet_names
-        except Exception:
-            return ["Chantier Principal"]
-    return ["Chantier Principal"]
-
-def save_to_excel_with_formatting(df_to_save, filepath, sheet_name="Chantier Principal"):
-    try:
-        if "Imprimer" in df_to_save.columns:
-            df_to_save = df_to_save.drop(columns=["Imprimer"])
-
-        mode = "a" if os.path.exists(filepath) else "w"
-        kwargs = {"mode": mode, "engine": "openpyxl"}
-        if mode == "a":
-            kwargs["if_sheet_exists"] = "replace"
-
-        with pd.ExcelWriter(filepath, **kwargs) as writer:
-            df_to_save.to_excel(writer, sheet_name=sheet_name, index=False)
-            worksheet = writer.sheets[sheet_name]
-            
-            for column in worksheet.columns:
-                max_len = max(len(str(cell.value or "")) for cell in column)
-                col_letter = column[0].column_letter
-                worksheet.column_dimensions[col_letter].width = min(max_len + 4, 60)
-            
-            num_rows = max(len(df_to_save) + 1, 2)
-            num_cols = len(df_to_save.columns)
-            if num_cols > 0:
-                end_col = get_column_letter(num_cols)
-                clean_sheet_name = re.sub(r'\W+', '_', sheet_name)
-                worksheet._tables.clear()
-                tab = Table(displayName=f"Tableau_{clean_sheet_name}", ref=f"A1:{end_col}{num_rows}")
-                tab.tableStyleInfo = TableStyleInfo(name="TableStyleMedium3", showRowStripes=True)
-                worksheet.add_table(tab)
-        return True, "✅ Mis à jour !"
-    except Exception as e:
-        return False, f"❌ Erreur : {e}"
-
-def get_col_val(row, *candidates):
-    """Extraction intelligente des valeurs pour parer aux fautes d'orthographe/espaces dans Excel."""
-    for c in candidates:
-        for col in row.index:
-            if str(col).strip().lower() == str(c).strip().lower():
-                val = str(row[col]).strip()
-                if val and val.lower() != "nan":
-                    return val
+def get_col_val(row, *possible_cols):
+    """
+    Extrait la valeur d'une colonne en testant plusieurs noms possibles 
+    sans se soucier des majuscules/minuscules ou des espaces.
+    """
+    row_cols_clean = {str(k).strip().upper(): k for k in row.index}
+    for col in possible_cols:
+        col_clean = str(col).strip().upper()
+        if col_clean in row_cols_clean:
+            val = row[row_cols_clean[col_clean]]
+            if pd.notna(val):
+                return str(val).strip()
     return ""
 
+
+def obtenir_modele_word(nature_travaux, dossier_chantier):
+    """
+    LIAISON AUTOMATIQUE : Associe la nature des travaux
+    au bon fichier .docx présent sur GitHub.
+    """
+    if not nature_travaux:
+        return None
+    
+    cle = str(nature_travaux).strip().upper()
+    
+    # Mapping exact avec vos fichiers .docx sur GitHub
+    mapping_fichiers = {
+        "ARASE DE PST": "ARASE DE PST.docx",
+        "ARASE DE TERRASSEMENT": "ARASE DE TERRASSEMENT.docx",
+        "ASSISE DE REMBLAI": "ASSISE DE REMBLAI.docx",
+        "COUCHE DE FORME": "COUCHE DE FORME.docx",
+        "DEGAGEMENT D'EMPRISE": "DEGAGEMENT D'EMPRISE.docx",
+        "DÉCAPAGE": "DÉCAPAGE.docx",
+        "DECAPAGE": "DÉCAPAGE.docx",
+        "REMBLAI PST": "REMBLAI PST.docx",
+        "REMBLAIS CONTIGUS": "REMBLAIS CONTIGUS.docx",
+        "REMBLAIS DE FOUILLE": "REMBLAIS DE FOUILLE.docx",
+        "REMBLAIS": "REMBLAIS.docx",
+    }
+    
+    # 1. Correspondance exacte via le dictionnaire
+    if cle in mapping_fichiers:
+        chemin = os.path.join(dossier_chantier, mapping_fichiers[cle])
+        if os.path.exists(chemin):
+            return chemin
+
+    # 2. Recherche tolérante si le nom du fichier sur GitHub est proche
+    if os.path.exists(dossier_chantier):
+        fichiers = [f for f in os.listdir(dossier_chantier) if f.endswith('.docx')]
+        for f in fichiers:
+            nom_sans_ext = os.path.splitext(f)[0].strip().upper()
+            if nom_sans_ext == cle or cle in nom_sans_ext:
+                return os.path.join(dossier_chantier, f)
+            
+    return None
+
+
+def convertir_docx_en_pdf(docx_bytes):
+    """Convertit le fichier DOCX en PDF via LibreOffice si disponible."""
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            in_path = os.path.join(tmpdir, "document.docx")
+            with open(in_path, "wb") as f:
+                f.write(docx_bytes)
+            
+            cmd = ["libreoffice", "--headless", "--convert-to", "pdf", "--outdir", tmpdir, in_path]
+            subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, timeout=30)
+            
+            out_path = os.path.join(tmpdir, "document.pdf")
+            if os.path.exists(out_path):
+                with open(out_path, "rb") as f:
+                    return f.read()
+    except Exception:
+        pass
+    return None
+
+
+def generer_docx_et_pdf_bytes(modele_path, contexte):
+    """Remplit le modèle Word Jinja2 et produit les bytes DOCX et PDF."""
+    doc = DocxTemplate(modele_path)
+    doc.render(contexte)
+    
+    docx_io = io.BytesIO()
+    doc.save(docx_io)
+    docx_bytes = docx_io.getvalue()
+    
+    pdf_bytes = convertir_docx_en_pdf(docx_bytes)
+    return docx_bytes, pdf_bytes
+
+
+def creer_zip_fichiers(liste_fichiers):
+    """Crée un fichier ZIP contenant l'ensemble des documents générés."""
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for item in liste_fichiers:
+            if item.get('bytes_docx'):
+                zip_file.writestr(f"DOCX/{item['nom_docx']}", item['bytes_docx'])
+            if item.get('bytes_pdf'):
+                zip_file.writestr(f"PDF/{item['nom_pdf']}", item['bytes_pdf'])
+    return zip_buffer.getvalue()
+
+
 # ==========================================
-# 2. BARRE LATÉRALE (SIDEBAR)
+# 1. CHARGEMENT ET FILTRAGE DES DONNÉES EXCEL
 # ==========================================
-st.sidebar.markdown("### 🏗️ **Gestion de Chantier**")
+fichier_excel = os.path.join(DOSSIER_CHANTIER, "suivi .xlsx")
+if not os.path.exists(fichier_excel):
+    fichier_excel = os.path.join(DOSSIER_CHANTIER, "suivi.xlsx")
 
-chantiers_existants = get_sheet_names(chemin_excel_defaut)
-chantier_actif = st.sidebar.selectbox("📌 **Projet / Tronçon Actif :**", options=chantiers_existants)
+if not os.path.exists(fichier_excel):
+    st.error("❌ Fichier Excel `suivi.xlsx` introuvable sur le dépôt GitHub.")
+    st.stop()
 
-with st.sidebar.expander("➕ Nouveau Projet", expanded=False):
-    nouveau_projet_nom = st.text_input("Nom du projet :", placeholder="Ex: Autoroute PK 12, Viaduc...")
-    if st.button("➕ Créer le Projet", use_container_width=True):
-        if nouveau_projet_nom.strip():
-            nom_clean = nouveau_projet_nom.strip()
-            if nom_clean not in chantiers_existants:
-                df_vide = pd.DataFrame(columns=COLUMNS_TEMPLATE)
-                save_to_excel_with_formatting(df_vide, chemin_excel_defaut, sheet_name=nom_clean)
-                st.success(f"Projet '{nom_clean}' créé !")
-                st.rerun()
-
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 📂 **Source des Données**")
-source_excel = st.sidebar.radio(
-    "Source :",
-    ["Fichier système (suivi.xlsx)", "Téléverser un autre fichier Excel"]
-)
-
-df = None
-if source_excel == "Fichier système (suivi.xlsx)":
-    if os.path.exists(chemin_excel_defaut):
-        try:
-            df = pd.read_excel(chemin_excel_defaut, sheet_name=chantier_actif).fillna("")
-            st.sidebar.success(f"✅ Projet '{chantier_actif}' chargé !")
-        except Exception as e:
-            st.sidebar.error(f"❌ Erreur de lecture : {e}")
+try:
+    df = pd.read_excel(fichier_excel)
+    # Formater la colonne DATE
+    col_date = next((c for c in df.columns if "DATE" in str(c).upper()), None)
+    if col_date:
+        df[col_date] = pd.to_datetime(df[col_date], errors='coerce').dt.strftime('%d/%m/%Y')
     else:
-        st.sidebar.error("❌ Fichier Excel introuvable.")
-else:
-    fichier_upload = st.sidebar.file_uploader("Fichier Excel (.xlsx)", type=["xlsx", "xls"])
-    if fichier_upload is not None:
-        try:
-            df = pd.read_excel(fichier_upload).fillna("")
-            st.sidebar.success("✅ Importation réussie !")
-        except Exception as e:
-            st.sidebar.error(f"❌ Erreur : {e}")
+        st.error("❌ Impossible de trouver la colonne 'DATE' dans le fichier Excel.")
+        st.stop()
+except Exception as e:
+    st.error(f"❌ Erreur lors de la lecture du fichier Excel : {e}")
+    st.stop()
+
+# Barre latérale - Sélection de la date
+st.sidebar.header("📅 Sélection du Jour")
+dates_disponibles = [d for d in df[col_date].dropna().unique() if d != ""]
+date_choisie = st.sidebar.selectbox("Choisissez une date de suivi :", options=dates_disponibles)
+
+# Filtrage du DataFrame
+df_jour = df[df[col_date] == date_choisie].copy()
+
+st.subheader(f"📌 Travaux enregistrés pour le : `{date_choisie}` ({len(df_jour)} ligne(s))")
+st.dataframe(df_jour, use_container_width=True)
+
+st.write("---")
 
 # ==========================================
-# 3. INTERFACE PRINCIPALE
+# 2. GENERATION DES DOCUMENTS
 # ==========================================
+st.header("⚙️ Option de Génération des Demandes d'Intervention")
 
-# Banner Title
-st.markdown(f"""
-<div class="gc-header">
-    <h1>🛣️ Plateforme Génie Civil & Travaux Routiers</h1>
-    <p>Gestion des suivis de travaux, fiches de contrôle & édition automatique des documents Word/PDF | Projet : <b>{chantier_actif}</b></p>
-</div>
-""", unsafe_allow_html=True)
+tab1, tab2 = st.tabs(["📄 Option 1 : Fiches Individuelles (Liaison Automatique)", "📑 Option 2 : DI Consolidation Journalière"])
 
-if df is not None:
-    # 📊 KPI Cards Section
-    k1, k2, k3, k4 = st.columns(4)
-    with k1:
-        st.markdown(f'<div class="kpi-card"><div class="kpi-value">{len(df)}</div><div class="kpi-label">📝 Fiches Enregistrées</div></div>', unsafe_allow_html=True)
-    with k2:
-        col_nat = "TITRE DE LA NATURE DES TRAVAUX" if "TITRE DE LA NATURE DES TRAVAUX" in df.columns else df.columns[1] if len(df.columns) > 1 else ""
-        nb_natures = df[col_nat].nunique() if col_nat in df.columns else 0
-        st.markdown(f'<div class="kpi-card"><div class="kpi-value">{nb_natures}</div><div class="kpi-label">🚜 Natures de Travaux</div></div>', unsafe_allow_html=True)
-    with k3:
-        col_p = COL_PARTIE if COL_PARTIE in df.columns else "PARTIE D meOUVRAGE"
-        nb_parties = df[col_p].nunique() if col_p in df.columns else 0
-        st.markdown(f'<div class="kpi-card"><div class="kpi-value">{nb_parties}</div><div class="kpi-label">🧱 Parties d\'Ouvrage</div></div>', unsafe_allow_html=True)
-    with k4:
-        st.markdown(f'<div class="kpi-card"><div class="kpi-value" style="color:#ff6b00;">Active</div><div class="kpi-label">⚙️ État du Système</div></div>', unsafe_allow_html=True)
+# ------------------------------------------
+# TAB 1 : FICHES INDIVIDUELLES (LIAISON)
+# ------------------------------------------
+with tab1:
+    st.markdown("##### 📄 **Fiches Individuelles liées aux modèles Word par Nature de Travaux**")
+    st.info("Chaque ligne de l'Excel est liée à son modèle spécifique `.docx` selon la colonne **TITRE DE LA NATURE DES TRAVAUX**.")
 
-    st.write("")
+    if st.button(f"⚡ Générer toutes les fiches du {date_choisie}", type="primary", use_container_width=True):
+        if df_jour.empty:
+            st.warning("⚠️ Aucune donnée pour cette date.")
+        else:
+            try:
+                with st.spinner("⏳ Recherche des modèles Word et génération des fiches..."):
+                    fichiers_generes = []
+                    fichiers_introuvables = []
 
-    # --- 3 ONGLETS ---
-    tab1, tab2, tab3 = st.tabs([
-        "📝 **Nouvelle Saisie Chantier**", 
-        "📊 **Registre & Génération Individuelle**", 
-        "📅 **Demandes d'Intervention (DI) par Jour**"
-    ])
+                    for idx, row in df_jour.iterrows():
+                        nature = get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE")
+                        
+                        # Liaison dynamique
+                        modele_path = obtenir_modele_word(nature, DOSSIER_CHANTIER)
+                        
+                        if not modele_path:
+                            fichiers_introuvables.append(nature or "Nature inconnue")
+                            continue
 
-    # -------------------------------------------------------------
-    # TAB 1 : SAISIE
-    # -------------------------------------------------------------
-    with tab1:
-        st.markdown("##### 👷 **Ajouter une nouvelle fiche de contrôle / suivi**")
-        col1, col2 = st.columns(2)
-        with col1:
-            date_saisie = st.date_input("🗓️ Date des Travaux", value=datetime.today(), format="DD/MM/YYYY")
-            nature_selectionnee = st.selectbox("📌 Nature des travaux", options=list(LIAISONS.keys()))
-            info_liaison = LIAISONS.get(nature_selectionnee, {"procedure": "", "pieces": ""})
-            partie_ouvrage = st.text_input("🧱 Partie d'ouvrage", placeholder="Ex: Bretelle B, Tranchée 1...")
-            situation = st.text_input("📍 Situation / PK", placeholder="Ex: PK 12+400 au PK 12+800")
-        with col2:
-            activite = st.text_area("🚜 Activité réalisée", height=80, placeholder="Ex: Réalisation de la couche de forme...")
-            essai = st.selectbox("🧪 Essai / Contrôle réalisé", options=[
-                "Aucun", "ESSAI À LA PLAQUE", "DENSITÉ", "ESSAI À LA PLAQUE + DENSITÉ",
-                "TENEUR EN EAU", "IDENTIFICATION DES MATERIAUX" , "PRELEVEMENT AVANT COMPACTAGE", "PRELEVEMENT APRES COMPACTAGE", "PRELEVEMENT"])
-            procedure = st.text_input("📑 Référence procédure", value=info_liaison["procedure"])
-            pieces_jointes = st.text_area("📎 Pièces jointes", value=info_liaison["pieces"], height=100)
+                        contexte = {
+                            'DATE': get_col_val(row, "DATE") or date_choisie,
+                            'NATURE': nature,
+                            'ACTIVITE': get_col_val(row, "ACTIVITÉ RÉALISÉE", "ACTIVITE"),
+                            'PARTIE': get_col_val(row, "PARTIE D'OUVRAGE", "PARTIE"),
+                            'SITUATION': get_col_val(row, "SITUATION", "PK"),
+                            'ESSAI': get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI"),
+                            'OBSERVATION': get_col_val(row, "OBSERVATION", "OBS")
+                        }
 
-        if st.button("💾 Enregistrer la Fiche", type="primary"):
-            new_entry = {
-                "DATE": date_saisie.strftime('%d/%m/%Y'),
-                "TITRE DE LA NATURE DES TRAVAUX": nature_selectionnee,
-                COL_PARTIE: partie_ouvrage,
-                "SITUATION": situation,
-                "ACTIVITÉ RÉALISÉE": activite,
-                "ÉSSAI/ CONTRÔLE RÉALISÉE": None if essai == "Aucun" else essai,
-                "RÉFÉRENCE DE PROCÉDURE": procedure,
-                "PIÈCES JOINTES": pieces_jointes
-            }
-            df_updated = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
-            if source_excel == "Fichier système (suivi.xlsx)":
-                save_to_excel_with_formatting(df_updated, chemin_excel_defaut, sheet_name=chantier_actif)
-            st.success("✅ Fiche enregistrée avec succès !")
-            st.rerun()
+                        docx_b, pdf_b = generer_docx_et_pdf_bytes(modele_path, contexte)
+                        nom_clean = f"{nature}_{idx+1}".replace(" ", "_").replace("'", "").replace("/", "-")
 
-    # -------------------------------------------------------------
-    # TAB 2 : REGISTRE & GENERATION
-    # -------------------------------------------------------------
-    with tab2:
-        st.markdown("##### 🔍 **Registre des Travaux & Exportation**")
+                        fichiers_generes.append({
+                            'nom_docx': f"{nom_clean}.docx",
+                            'bytes_docx': docx_b,
+                            'nom_pdf': f"{nom_clean}.pdf",
+                            'bytes_pdf': pdf_b
+                        })
 
-        with st.expander("🔻 **Filtres de Recherche Avancés**", expanded=False):
-            col_partie_name = COL_PARTIE if COL_PARTIE in df.columns else "PARTIE D meOUVRAGE"
-            col_nat_name = "TITRE DE LA NATURE DES TRAVAUX" if "TITRE DE LA NATURE DES TRAVAUX" in df.columns else df.columns[1] if len(df.columns) > 1 else ""
+                    if fichiers_introuvables:
+                        st.warning(f"⚠️ Modèle `.docx` non trouvé pour : {', '.join(set(fichiers_introuvables))}")
 
-            natures_uniques = sorted([str(x) for x in df[col_nat_name].unique() if str(x).strip()]) if col_nat_name in df.columns else []
-            parties_uniques = sorted([str(x) for x in df[col_partie_name].unique() if str(x).strip()]) if col_partie_name in df.columns else []
-
-            cf1, cf2 = st.columns(2)
-            with cf1:
-                filter_nature = st.multiselect("📌 Filtrer par Nature", options=natures_uniques)
-            with cf2:
-                filter_partie = st.multiselect("🧱 Filtrer par Partie d'Ouvrage", options=parties_uniques)
-
-            search_text = st.text_input("⚡ Recherche rapide par mot-clé")
-
-        # Application Filtres
-        df_filtered = df.copy()
-        if filter_nature and col_nat_name in df_filtered.columns:
-            df_filtered = df_filtered[df_filtered[col_nat_name].isin(filter_nature)]
-        if filter_partie and col_partie_name in df_filtered.columns:
-            df_filtered = df_filtered[df_filtered[col_partie_name].isin(filter_partie)]
-        if search_text:
-            mask = df_filtered.apply(lambda col: col.astype(str).str.contains(search_text, case=False, na=False)).any(axis=1)
-            df_filtered = df_filtered[mask]
-
-        df_editor = df_filtered.copy()
-        if "Imprimer" not in df_editor.columns:
-            df_editor.insert(0, "Imprimer", False)
-
-        edited_df = st.data_editor(
-            df_editor,
-            num_rows="dynamic",
-            height=360,
-            use_container_width=True
-        )
-
-        lignes_selectionnees = edited_df[edited_df["Imprimer"] == True]
-        nb_selections = len(lignes_selectionnees)
-
-        st.markdown("---")
-        col_act1, col_act2 = st.columns(2)
-
-        with col_act1:
-            if st.button("💾 Enregistrer les modifications Excel", type="secondary", use_container_width=True):
-                if source_excel == "Fichier système (suivi.xlsx)":
-                    df.update(edited_df)
-                    save_to_excel_with_formatting(df, chemin_excel_defaut, sheet_name=chantier_actif)
-                    st.success("✅ Base Excel mise à jour !")
-                    st.rerun()
-
-        with col_act2:
-            if nb_selections == 0:
-                btn_title = "📄 Générer Word & PDF (Cochez une ligne)"
-            elif nb_selections == 1:
-                btn_title = f"📄 Générer Word & PDF (1 Fiche)"
-            else:
-                btn_title = f"📦 Pack ZIP : {nb_selections} Fiches (Word + PDF)"
-
-            if st.button(btn_title, type="primary", use_container_width=True):
-                if nb_selections == 0:
-                    st.warning("⚠️ Veuillez cocher la case 'Imprimer' d'au moins une ligne dans le tableau !")
-                
-                elif nb_selections == 1:
-                    ligne_choisie = lignes_selectionnees.iloc[0]
-                    nom_modele = get_col_val(ligne_choisie, "TITRE DE LA NATURE DES TRAVAUX", "NATURE")
-                    chemin_modele = trouver_modele_word(nom_modele)
-
-                    if not chemin_modele:
-                        st.error(f"❌ Le modèle Word `{nom_modele}.docx` est introuvable.")
-                    else:
-                        try:
-                            with st.spinner("⏳ Génération Word & PDF..."):
-                                contexte = {
-                                    'NATURE': get_col_val(ligne_choisie, "TITRE DE LA NATURE DES TRAVAUX", "NATURE"),
-                                    'REF': get_col_val(ligne_choisie, "RÉFÉRENCE DE PROCÉDURE", "REF"),
-                                    'PARTIE': get_col_val(ligne_choisie, "PARTIE D'OUVRAGE", "PARTIE D meOUVRAGE", "PARTIE"),
-                                    'SITUATION': get_col_val(ligne_choisie, "SITUATION", "PK"),
-                                    'PIECES': text_to_richtext(get_col_val(ligne_choisie, "PIÈCES JOINTES", "PIECES")),
-                                    'DATE': get_col_val(ligne_choisie, "DATE"),
-                                    'ACTIVITE': text_to_richtext(get_col_val(ligne_choisie, "ACTIVITÉ RÉALISÉE", "ACTIVITE")),
-                                    'ESSAI': get_col_val(ligne_choisie, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI")
-                                }
-                                docx_bytes, pdf_bytes = generer_docx_et_pdf_bytes(chemin_modele, contexte)
-                                nom_base = construire_nom_pdf(ligne_choisie).replace(".pdf", "")
-
-                                st.success("✅ Fiche générée !")
-                                c_down1, c_down2 = st.columns(2)
-                                with c_down1:
-                                    st.download_button("📝 Télécharger WORD", data=docx_bytes, file_name=f"{nom_base}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
-                                with c_down2:
-                                    st.download_button("📕 Télécharger PDF", data=pdf_bytes, file_name=f"{nom_base}.pdf", mime="application/pdf", use_container_width=True)
-                        except Exception as e:
-                            st.error(f"❌ Erreur : {e}")
-
-                else:
-                    zip_buffer = io.BytesIO()
-                    fichiers_crees = 0
-
-                    with st.spinner(f"⏳ Génération du Pack ({nb_selections} fiches)..."):
-                        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                            for idx, row in lignes_selectionnees.iterrows():
-                                nom_modele = get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE")
-                                chemin_modele = trouver_modele_word(nom_modele)
-
-                                if not chemin_modele:
-                                    continue
-
-                                try:
-                                    contexte = {
-                                        'NATURE': get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE"),
-                                        'REF': get_col_val(row, "RÉFÉRENCE DE PROCÉDURE", "REF"),
-                                        'PARTIE': get_col_val(row, "PARTIE D'OUVRAGE", "PARTIE D meOUVRAGE", "PARTIE"),
-                                        'SITUATION': get_col_val(row, "SITUATION", "PK"),
-                                        'PIECES': text_to_richtext(get_col_val(row, "PIÈCES JOINTES", "PIECES")),
-                                        'DATE': get_col_val(row, "DATE"),
-                                        'ACTIVITE': text_to_richtext(get_col_val(row, "ACTIVITÉ RÉALISÉE", "ACTIVITE")),
-                                        'ESSAI': get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI")
-                                    }
-                                    docx_bytes, pdf_bytes = generer_docx_et_pdf_bytes(chemin_modele, contexte)
-                                    nom_base = construire_nom_pdf(row).replace(".pdf", "")
-
-                                    zip_file.writestr(f"{nom_base}.docx", docx_bytes)
-                                    zip_file.writestr(f"{nom_base}.pdf", pdf_bytes)
-                                    fichiers_crees += 1
-                                except Exception:
-                                    pass
-
-                    if fichiers_crees > 0:
-                        zip_buffer.seek(0)
-                        st.success(f"✅ Pack prêt ({fichiers_crees * 2} fichiers) !")
+                    if fichiers_generes:
+                        st.success(f"✅ {len(fichiers_generes)} fiche(s) générée(s) avec succès !")
+                        zip_bytes = creer_zip_fichiers(fichiers_generes)
+                        
                         st.download_button(
-                            label=f"📦 Télécharger le Pack ZIP",
-                            data=zip_buffer,
-                            file_name=f"Fiches_Chantier_{datetime.now().strftime('%Y%m%d_%H%M')}.zip",
+                            "📦 Télécharger toutes les fiches (ZIP)",
+                            data=zip_bytes,
+                            file_name=f"Fiches_DI_{date_choisie.replace('/', '-')}.zip",
                             mime="application/zip",
                             use_container_width=True
                         )
+            except Exception as e:
+                st.error(f"❌ Erreur lors de la génération : {e}")
 
-    # -------------------------------------------------------------
-    # TAB 3 : DEMANDES D'INTERVENTION (DI) PAR JOUR
-    # -------------------------------------------------------------
-    with tab3:
-        st.markdown("##### 📅 **Génération des Demandes d'Intervention (DI) par Jour**")
-        
-        # Identification de la colonne Date
-        col_date_name = None
-        for c in df.columns:
-            if str(c).strip().lower() == "date":
-                col_date_name = c
-                break
+# ------------------------------------------
+# TAB 2 : DI CONSOLIDATION JOURNALIÈRE
+# ------------------------------------------
+with tab2:
+    st.markdown("##### 📑 **Demande d'Intervention globale regroupant tout le tableau du jour**")
+    st.info("Utilise le modèle Word général `Demande d'intervention.docx` pour regrouper toutes les lignes de la journée.")
 
-        if col_date_name and not df.empty:
-            dates_disponibles = [str(d).strip() for d in df[col_date_name].unique() if str(d).strip() and str(d).lower() != "nan"]
-            
-            if not dates_disponibles:
-                st.warning("⚠️ Aucune date enregistrée dans ce projet.")
-            else:
-                date_choisie = st.selectbox("🗓️ **Sélectionner la date de la Demande d'Intervention :**", options=dates_disponibles)
+    # Recherche du modèle journalier
+    noms_modeles_di = [
+        "Demande d'intervention.docx",
+        "Demande_intervention.docx",
+        "Demande d intervention.docx",
+        "DI.docx"
+    ]
+    modele_di_global = None
+    for nom in noms_modeles_di:
+        p = os.path.join(DOSSIER_CHANTIER, nom)
+        if os.path.exists(p):
+            modele_di_global = p
+            break
 
-                df_jour = df[df[col_date_name].astype(str).str.strip() == date_choisie].copy()
-
-                st.info(f"📍 **{len(df_jour)} intervention(s) / tâche(s) programmée(s) pour la journée du {date_choisie} :**")
-                
-                st.dataframe(df_jour, use_container_width=True)
-
-                st.markdown("---")
-                cdi1, cdi2 = st.columns(2)
-
-                # OPTION 1 : PACK ZIP DU JOUR
-                with cdi1:
-                    st.markdown("##### 📦 **Option 1 : Générer le Pack ZIP du Jour**")
-                    st.caption("Génère les fiches/DI individuelles en Word et PDF pour toutes les interventions de cette journée.")
+    if st.button(f"📑 Générer la DI globale du {date_choisie}", type="secondary", use_container_width=True):
+        if not modele_di_global:
+            st.error("❌ Impossible de trouver le modèle `Demande d'intervention.docx` sur GitHub.")
+        else:
+            try:
+                with st.spinner("⏳ Génération du document récapitulatif journalier..."):
+                    liste_activites = []
                     
-                    if st.button(f"⚡ Générer toutes les DI du {date_choisie} (ZIP)", type="primary", use_container_width=True):
-                        zip_buffer = io.BytesIO()
-                        fichiers_crees = 0
+                    for _, row in df_jour.iterrows():
+                        date_row = get_col_val(row, "DATE") or date_choisie
+                        nature = get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE")
+                        partie = get_col_val(row, "PARTIE D'OUVRAGE", "PARTIE")
+                        situation = get_col_val(row, "SITUATION", "PK")
+                        activite = get_col_val(row, "ACTIVITÉ RÉALISÉE", "ACTIVITE")
+                        essai = get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI")
 
-                        with st.spinner(f"⏳ Génération des DI pour le {date_choisie}..."):
-                            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                                for idx, row in df_jour.iterrows():
-                                    nom_modele = get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE")
-                                    chemin_modele = trouver_modele_word(nom_modele)
+                        # Fusion propre des colonnes
+                        act_nat = f"{activite} - {nature}".strip(" -") if activite and nature else activite or nature
+                        partie_sit = f"{partie} / {situation}".strip(" /") if partie and situation else partie or situation
 
-                                    if not chemin_modele:
-                                        continue
+                        liste_activites.append({
+                            'DATE': date_row,
+                            'ACTIVITE_NATURE': act_nat,
+                            'PARTIE_SITUATION': partie_sit,
+                            'ESSAI': essai
+                        })
 
-                                    try:
-                                        contexte = {
-                                            'NATURE': get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE"),
-                                            'REF': get_col_val(row, "RÉFÉRENCE DE PROCÉDURE", "REF"),
-                                            'PARTIE': get_col_val(row, "PARTIE D'OUVRAGE", "PARTIE D meOUVRAGE", "PARTIE"),
-                                            'SITUATION': get_col_val(row, "SITUATION", "PK"),
-                                            'PIECES': text_to_richtext(get_col_val(row, "PIÈCES JOINTES", "PIECES")),
-                                            'DATE': date_choisie,
-                                            'ACTIVITE': text_to_richtext(get_col_val(row, "ACTIVITÉ RÉALISÉE", "ACTIVITE")),
-                                            'ESSAI': get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI")
-                                        }
-                                        docx_bytes, pdf_bytes = generer_docx_et_pdf_bytes(chemin_modele, contexte)
-                                        nom_base = construire_nom_pdf(row).replace(".pdf", "")
+                    contexte_global = {
+                        'DATE': date_choisie,
+                        'TRAVAUX': liste_activites
+                    }
 
-                                        zip_file.writestr(f"DI_{nom_base}.docx", docx_bytes)
-                                        zip_file.writestr(f"DI_{nom_base}.pdf", pdf_bytes)
-                                        fichiers_crees += 1
-                                    except Exception:
-                                        pass
+                    docx_b, pdf_b = generer_docx_et_pdf_bytes(modele_di_global, contexte_global)
+                    date_clean = date_choisie.replace("/", "-")
 
-                        if fichiers_crees > 0:
-                            zip_buffer.seek(0)
-                            date_clean = date_choisie.replace("/", "-")
-                            st.success(f"✅ Pack DI du {date_choisie} prêt ({fichiers_crees * 2} fichiers) !")
+                    st.success(f"✅ DI Globale générée avec {len(liste_activites)} ligne(s) !")
+                    
+                    c_down1, c_down2 = st.columns(2)
+                    with c_down1:
+                        st.download_button(
+                            "📝 Télécharger DOCX (DI Globale)",
+                            data=docx_b,
+                            file_name=f"DI_Globale_{date_clean}.docx",
+                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            use_container_width=True
+                        )
+                    with c_down2:
+                        if pdf_b:
                             st.download_button(
-                                label=f"📦 Télécharger le ZIP DI ({date_choisie})",
-                                data=zip_buffer,
-                                file_name=f"Demandes_Intervention_{date_clean}.zip",
-                                mime="application/zip",
+                                "📕 Télécharger PDF (DI Globale)",
+                                data=pdf_b,
+                                file_name=f"DI_Globale_{date_clean}.pdf",
+                                mime="application/pdf",
                                 use_container_width=True
                             )
                         else:
-                            st.error("❌ Aucun modèle Word correspondant aux natures de travaux n'a été trouvé.")
-
-                # OPTION 2 : FICHE DE SYNTHÈSE DI UNIQUE POUR LE JOUR
-                with cdi2:
-                    st.markdown("##### 📄 **Option 2 : DI Consolidation Journalière**")
-                    st.caption("Génère une seule Demande d'Intervention globale regroupant la liste des travaux du jour.")
-
-                    # Recherche directe et stricte du fichier
-                    modele_di_global = os.path.join(DOSSIER_CHANTIER, "Demande d'intervention.docx")
-                    if not os.path.exists(modele_di_global):
-                        modele_di_global = os.path.join(DOSSIER_CHANTIER, "Demande_intervention.docx")
-                        if not os.path.exists(modele_di_global):
-                            modele_di_global = trouver_modele_word("Demande d'intervention") or trouver_modele_word("DI")
-
-                    if st.button(f"📑 Générer la DI globale du {date_choisie}", type="secondary", use_container_width=True):
-                        if not modele_di_global or not os.path.exists(modele_di_global):
-                            st.error("❌ Fichier `Demande d'intervention.docx` introuvable sur le répertoire GitHub.")
-                        else:
-                            try:
-                                with st.spinner("⏳ Génération de la DI globale journalière..."):
-                                    liste_activites = []
-                                    for _, row in df_jour.iterrows():
-                                        nature = get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE", "NATURE DES TRAVAUX")
-                                        partie = get_col_val(row, "PARTIE D'OUVRAGE", "PARTIE D meOUVRAGE", "PARTIE OUVRAGE", "PARTIE")
-                                        situation = get_col_val(row, "SITUATION", "PK", "LOCALISATION")
-                                        activite = get_col_val(row, "ACTIVITÉ RÉALISÉE", "ACTIVITE REALISEE", "ACTIVITE")
-                                        essai = get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI/ CONTROL REALISEE", "ESSAI", "CONTROLE")
-                                        ref = get_col_val(row, "RÉFÉRENCE DE PROCÉDURE", "REFERENCE DE PROCEDURE", "REF")
-
-                                        liste_activites.append({
-                                            'NATURE': nature,
-                                            'PARTIE': partie,
-                                            'SITUATION': situation,
-                                            'ACTIVITE': activite,
-                                            'ESSAI': essai,
-                                            'REF': ref
-                                        })
-
-                                    contexte_global = {
-                                        'DATE': date_choisie,
-                                        'PROJET': chantier_actif,
-                                        'TRAVAUX': liste_activites,
-                                        'NB_TRAVAUX': len(liste_activites)
-                                    }
-
-                                    docx_bytes, pdf_bytes = generer_docx_et_pdf_bytes(modele_di_global, contexte_global)
-                                    date_clean = date_choisie.replace("/", "-")
-
-                                    st.success(f"✅ DI Globale générée avec {len(liste_activites)} ligne(s) !")
-                                    g_col1, g_col2 = st.columns(2)
-                                    with g_col1:
-                                        st.download_button("📝 WORD (DI Globale)", data=docx_bytes, file_name=f"DI_Globale_{date_clean}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
-                                    with g_col2:
-                                        st.download_button("📕 PDF (DI Globale)", data=pdf_bytes, file_name=f"DI_Globale_{date_clean}.pdf", mime="application/pdf", use_container_width=True)
-                            except Exception as e:
-                                st.error(f"❌ Erreur lors de la génération : {e}")
-
-        else:
-            st.info("💡 Aucune donnée disponible pour le moment. Veuillez saisir des travaux ou charger un fichier Excel.")
-
-else:
-    st.info("💡 Veuillez charger un fichier Excel pour commencer.")
+                            st.info("ℹ️ La version PDF n'est pas disponible (LibreOffice non présent).")
+            except Exception as e:
+                st.error(f"❌ Erreur lors de la génération : {e}")

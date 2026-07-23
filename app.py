@@ -15,174 +15,117 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.utils import get_column_letter
 
 # ==========================================
-# 0. CONFIGURATION & PERFECT TABS VISIBILITY CSS
+# 0. CONFIGURATION DE LA PAGE ET STYLES CSS
 # ==========================================
 st.set_page_config(
-    page_title="BATISCRIPT - Suivi Chantier",
-    page_icon="🏗️",
+    page_title="Suivi Chantier - Génie Civil & Routes",
+    page_icon="🚧",
     layout="wide"
 )
 
-# Custom CSS specifically targeting Streamlit Tabs and all text elements
-st.markdown('''
+# 🎨 Injecting Custom Civil Engineering / Highway CSS Theme
+st.markdown("""
 <style>
-    /* Force main background */
-    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
-        background-color: #f8fafc !important;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    /* Background General - Gris Béton Clair */
+    .stApp {
+        background-color: #F4F6F6;
     }
-
-    /* TOP BAR HEADER */
-    .top-header-bar {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
-        padding: 14px 24px !important;
-        border-radius: 12px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: space-between !important;
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15) !important;
-        margin-bottom: 20px !important;
+    
+    /* Main Banner Header - Asphalte et Jaune Engin */
+    .gc-header {
+        background: linear-gradient(135deg, #1C2833 0%, #2C3E50 100%);
+        color: #ffffff;
+        padding: 22px 28px;
+        border-radius: 12px;
+        border-left: 8px solid #F1C40F; /* Jaune Engin (Construction Yellow) */
+        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15);
+        margin-bottom: 25px;
     }
-
-    .top-header-title {
-        color: #ffffff !important;
-        font-size: 22px !important;
+    .gc-header h1 {
+        color: #F1C40F !important;
+        font-size: 26px !important;
         font-weight: 800 !important;
-        letter-spacing: 0.5px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        letter-spacing: 0.5px;
+    }
+    .gc-header p {
+        color: #D5D8DC;
+        margin: 6px 0 0 0;
+        font-size: 14px;
     }
 
-    .top-header-role {
-        background-color: rgba(245, 158, 11, 0.2) !important;
-        color: #fbbf24 !important;
-        border: 1px solid rgba(245, 158, 11, 0.4) !important;
-        padding: 6px 14px !important;
-        border-radius: 20px !important;
-        font-size: 13px !important;
-        font-weight: 700 !important;
+    /* KPI Cards Styling - Bordure Orange Sécurité */
+    .kpi-card {
+        background-color: #ffffff;
+        border: 1px solid #BDC3C7;
+        border-top: 4px solid #E67E22; /* Orange Chantier */
+        border-radius: 10px;
+        padding: 16px;
+        text-align: center;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+    .kpi-value {
+        font-size: 24px;
+        font-weight: 800;
+        color: #2C3E50;
+    }
+    .kpi-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #7F8C8D;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 4px;
     }
 
-    /* FORM LABELS VISIBILITY FIX */
-    [data-testid="stWidgetLabel"], 
-    [data-testid="stWidgetLabel"] *, 
-    label, label * {
-        color: #0f172a !important;
-        font-weight: 700 !important;
-        font-size: 14px !important;
-        opacity: 1 !important;
-    }
-
-    /* PLACEHOLDERS */
-    input::placeholder, textarea::placeholder {
-        color: #64748b !important;
-        opacity: 1 !important;
-    }
-
-    /* INPUTS & TEXT AREAS */
-    input, textarea, [data-baseweb="input"] {
-        background-color: #ffffff !important;
-        color: #0f172a !important;
-        border: 1px solid #cbd5e1 !important;
-        border-radius: 8px !important;
-    }
-
-    /* ========================================================= */
-    /* COMPLETE TABS FIX - INACTIVE TAB TEXT VISIBILITY FIX */
-    /* ========================================================= */
-    .stTabs [data-baseweb="tab-list"] {
-        background-color: #e2e8f0 !important;
-        padding: 6px !important;
-        border-radius: 12px !important;
-        gap: 8px !important;
-        border: 1px solid #cbd5e1 !important;
-    }
-
-    /* Base style for ALL Tabs */
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 8px !important;
-        padding: 10px 20px !important;
-        transition: all 0.2s ease !important;
-        border: none !important;
-    }
-
-    /* INACTIVE TAB - Dark bold visible text */
-    .stTabs [data-baseweb="tab"][aria-selected="false"] {
-        background-color: #ffffff !important;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
-    }
-    .stTabs [data-baseweb="tab"][aria-selected="false"] *,
-    .stTabs [data-baseweb="tab"][aria-selected="false"] p,
-    .stTabs [data-baseweb="tab"][aria-selected="false"] div,
-    .stTabs [data-baseweb="tab"][aria-selected="false"] span {
-        color: #0f172a !important;
-        font-weight: 700 !important;
-        font-size: 15px !important;
-        opacity: 1 !important;
-    }
-
-    /* Hover state for inactive tab */
-    .stTabs [data-baseweb="tab"][aria-selected="false"]:hover {
-        background-color: #f1f5f9 !important;
-    }
-
-    /* ACTIVE TAB - Deep Indigo with crisp white text */
-    .stTabs [data-baseweb="tab"][aria-selected="true"] {
-        background-color: #4f46e5 !important;
-        box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3) !important;
-    }
-    .stTabs [data-baseweb="tab"][aria-selected="true"] *,
-    .stTabs [data-baseweb="tab"][aria-selected="true"] p,
-    .stTabs [data-baseweb="tab"][aria-selected="true"] div,
-    .stTabs [data-baseweb="tab"][aria-selected="true"] span {
-        color: #ffffff !important;
-        font-weight: 800 !important;
-        font-size: 15px !important;
-        opacity: 1 !important;
-    }
-
-    /* Hide default underline accent bar under tabs */
-    .stTabs [data-baseweb="tab-highlight"] {
-        background-color: transparent !important;
-    }
-    .stTabs [data-baseweb="tab-border"] {
-        background-color: transparent !important;
-    }
-
-    /* SIDEBAR STYLING */
-    section[data-testid="stSidebar"] {
-        background-color: #ffffff !important;
-        border-right: 1px solid #e2e8f0 !important;
-    }
-    section[data-testid="stSidebar"] * {
-        color: #1e293b !important;
-    }
-
-    /* BUTTONS */
+    /* Customizing Buttons - Orange Chantier */
     .stButton > button[kind="primary"] {
-        background-color: #4f46e5 !important;
+        background-color: #E67E22 !important;
         color: #ffffff !important;
+        border: none !important;
         border-radius: 8px !important;
         font-weight: 700 !important;
-        border: none !important;
         padding: 10px 20px !important;
+        transition: all 0.2s ease-in-out !important;
     }
-    .stButton > button[kind="primary"] * {
-        color: #ffffff !important;
+    .stButton > button[kind="primary"]:hover {
+        background-color: #D35400 !important;
+        box-shadow: 0 4px 12px rgba(211, 84, 0, 0.3) !important;
     }
 
-    /* SIDEBAR GREEN VALIDATE BUTTON */
-    .st-key-btn_validate > button {
-        background-color: #10b981 !important;
+    /* Sidebar Customization - Asphalte Sombre w M9sem b Sfer */
+    section[data-testid="stSidebar"] {
+        background-color: #17202A !important;
         color: #ffffff !important;
-        border-radius: 8px !important;
-        font-weight: 700 !important;
-        border: none !important;
-        width: 100%;
+        border-right: 3px solid #F1C40F !important;
     }
-    .st-key-btn_validate > button * {
-        color: #ffffff !important;
+    section[data-testid="stSidebar"] .stMarkdown h1, 
+    section[data-testid="stSidebar"] .stMarkdown h2, 
+    section[data-testid="stSidebar"] .stMarkdown h3,
+    section[data-testid="stSidebar"] label {
+        color: #F1C40F !important;
+    }
+
+    /* Tab Design */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: #ffffff;
+        border-radius: 8px;
+        padding: 10px 20px;
+        border: 1px solid #BDC3C7;
+        font-weight: 700;
+        color: #34495E;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #F1C40F !important;
+        color: #1C2833 !important;
+        border-color: #F1C40F !important;
     }
 </style>
-''', unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # ==========================================
 # 1. FONCTIONS ET INITIALISATION
@@ -309,7 +252,7 @@ def generer_docx_et_pdf_bytes(chemin_modele, contexte):
                         pdf_bytes = f.read()
 
         if pdf_bytes is None:
-            raise RuntimeError("Convertisseur PDF introuvable.")
+            raise RuntimeError("Impossible de convertir en PDF (MS Word ou LibreOffice requis).")
 
         return docx_bytes, pdf_bytes
 
@@ -354,110 +297,102 @@ def save_to_excel_with_formatting(df_to_save, filepath, sheet_name="Chantier Pri
         return False, f"❌ Erreur : {e}"
 
 # ==========================================
-# 2. HEADER TOP BAR
+# 2. BARRE LATÉRALE (SIDEBAR)
 # ==========================================
+st.sidebar.markdown("### 🚧 **Gestion de Chantier**")
+
 chantiers_existants = get_sheet_names(chemin_excel_defaut)
+chantier_actif = st.sidebar.selectbox("📌 **Projet / Tronçon Actif :**", options=chantiers_existants)
 
-col_h1, col_h2 = st.columns([2.8, 1.2])
-
-with col_h1:
-    st.markdown('''
-    <div class="top-header-bar">
-        <div class="top-header-title">🏢 SUIVI QUALITE</div>
-        <div class="top-header-role">🏅 Responsable Qualité</div>
-    </div>
-    ''', unsafe_allow_html=True)
-
-with col_h2:
-    chantier_actif = st.selectbox(
-        "🏗️ CHANTIER ACTIF :",
-        options=chantiers_existants,
-        key="topbar_chantier_select"
-    )
-
-# ==========================================
-# 3. SIDEBAR
-# ==========================================
-st.sidebar.markdown("📌 **NAVIGATION PAR NATURE DES TRAVAUX**")
-
-liste_natures_nav = ["📌 Tous les travaux"] + list(LIAISONS.keys())
-nature_selectionnee_sidebar = st.sidebar.radio(
-    "Filtrer par nature :",
-    options=liste_natures_nav,
-    index=0
-)
-
-st.sidebar.markdown("---")
-with st.sidebar.expander("➕ Ajouter un nouveau chantier/onglet", expanded=False):
-    nouveau_projet_nom = st.text_input("Nom du projet :", placeholder="Ex: NGE ADM Lot 02...")
-    if st.button("➕ Créer", use_container_width=True):
+with st.sidebar.expander("➕ Nouveau Projet", expanded=False):
+    nouveau_projet_nom = st.text_input("Nom du projet :", placeholder="Ex: Autoroute PK 12, Viaduc...")
+    if st.button("➕ Créer le Projet", use_container_width=True):
         if nouveau_projet_nom.strip():
             nom_clean = nouveau_projet_nom.strip()
             if nom_clean not in chantiers_existants:
                 df_vide = pd.DataFrame(columns=COLUMNS_TEMPLATE)
                 save_to_excel_with_formatting(df_vide, chemin_excel_defaut, sheet_name=nom_clean)
-                st.success("Chantier créé !")
+                st.success(f"Projet '{nom_clean}' créé !")
                 st.rerun()
 
 st.sidebar.markdown("---")
-source_excel = st.sidebar.radio("Source de données :", ["Fichier Excel Local", "Téléverser Fichier"])
+st.sidebar.markdown("### 📂 **Source des Données**")
+source_excel = st.sidebar.radio(
+    "Source :",
+    ["Fichier système (suivi.xlsx)", "Téléverser un autre fichier Excel"]
+)
 
 df = None
-if source_excel == "Fichier Excel Local":
+if source_excel == "Fichier système (suivi.xlsx)":
     if os.path.exists(chemin_excel_defaut):
         try:
             df = pd.read_excel(chemin_excel_defaut, sheet_name=chantier_actif).fillna("")
+            st.sidebar.success(f"✅ Projet '{chantier_actif}' chargé !")
         except Exception as e:
-            st.sidebar.error(f"Erreur : {e}")
+            st.sidebar.error(f"❌ Erreur de lecture : {e}")
+    else:
+        st.sidebar.error("❌ Fichier Excel introuvable.")
 else:
-    fichier_upload = st.sidebar.file_uploader("Importer Excel", type=["xlsx", "xls"])
+    fichier_upload = st.sidebar.file_uploader("Fichier Excel (.xlsx)", type=["xlsx", "xls"])
     if fichier_upload is not None:
         try:
             df = pd.read_excel(fichier_upload).fillna("")
-            st.sidebar.success("✅ Importé !")
+            st.sidebar.success("✅ Importation réussie !")
         except Exception as e:
-            st.sidebar.error(f"Erreur : {e}")
-
-
+            st.sidebar.error(f"❌ Erreur : {e}")
 
 # ==========================================
-# 4. INTERFACE PRINCIPALE (WORKSPACE)
+# 3. INTERFACE PRINCIPALE
 # ==========================================
-st.markdown(f"<h2 style='color:#0f172a; font-weight:800; margin-top:0;'>Chantier : <span style='color:#4f46e5;'>{chantier_actif}</span></h2>", unsafe_allow_html=True)
-st.markdown(f"<span style='color: #475569; font-weight: 700; font-size:14px;'>Filtre actif : <b style='color:#0f172a;'>{nature_selectionnee_sidebar}</b></span>", unsafe_allow_html=True)
 
-st.markdown("<br>", unsafe_allow_html=True)
+# Banner Title
+st.markdown(f"""
+<div class="gc-header">
+    <h1>🛣️ Plateforme Génie Civil & Travaux Routiers</h1>
+    <p>Gestion des suivi de travaux, fiches de contrôle & édition automatique des documents Word/PDF | Projet : <b>{chantier_actif}</b></p>
+</div>
+""", unsafe_allow_html=True)
 
 if df is not None:
-    tab1, tab2 = st.tabs(["📝 Saisie d'Avancement", "📊 Suivi des Tâches & Exports (Word / PDF)"])
+    # 📊 KPI Cards Section
+    k1, k2, k3, k4 = st.columns(4)
+    with k1:
+        st.markdown(f'<div class="kpi-card"><div class="kpi-value">{len(df)}</div><div class="kpi-label">📝 Fiches Enregistrées</div></div>', unsafe_allow_html=True)
+    with k2:
+        nb_natures = df['TITRE DE LA NATURE DES TRAVAUX'].nunique() if 'TITRE DE LA NATURE DES TRAVAUX' in df.columns else 0
+        st.markdown(f'<div class="kpi-card"><div class="kpi-value">{nb_natures}</div><div class="kpi-label">🚜 Natures de Travaux</div></div>', unsafe_allow_html=True)
+    with k3:
+        col_p = COL_PARTIE if COL_PARTIE in df.columns else "PARTIE D meOUVRAGE"
+        nb_parties = df[col_p].nunique() if col_p in df.columns else 0
+        st.markdown(f'<div class="kpi-card"><div class="kpi-value">{nb_parties}</div><div class="kpi-label">🧱 Parties d\'Ouvrage</div></div>', unsafe_allow_html=True)
+    with k4:
+        st.markdown(f'<div class="kpi-card"><div class="kpi-value" style="color:#27AE60;">Active</div><div class="kpi-label">⚙️ État du Système</div></div>', unsafe_allow_html=True)
 
-    # TAB 1: FORMULAIRE DE SAISIE
+    st.write("")
+
+    tab1, tab2 = st.tabs(["📝 **Nouvelle Saisie Chantier**", "📊 **Registre & Génération Word / PDF**"])
+
+    # -------------------------------------------------------------
+    # TAB 1 : SAISIE
+    # -------------------------------------------------------------
     with tab1:
-        st.markdown("<h3 style='color:#0f172a; font-weight:800;'>➕ Nouvelle entrée d'avancement</h3>", unsafe_allow_html=True)
-        
-        default_idx = 0
-        if nature_selectionnee_sidebar != "📌 Tous les travaux":
-            try:
-                default_idx = list(LIAISONS.keys()).index(nature_selectionnee_sidebar)
-            except ValueError:
-                default_idx = 0
-
+        st.markdown("##### 👷 **Ajouter une nouvelle fiche de contrôle / suivi**")
         col1, col2 = st.columns(2)
         with col1:
-            date_saisie = st.date_input("🗓️ Date d'intervention", value=datetime.today(), format="DD/MM/YYYY")
-            nature_selectionnee = st.selectbox("🏗️ Nature des Travaux", options=list(LIAISONS.keys()), index=default_idx)
+            date_saisie = st.date_input("🗓️ Date des Travaux", value=datetime.today(), format="DD/MM/YYYY")
+            nature_selectionnee = st.selectbox("📌 Nature des travaux", options=list(LIAISONS.keys()))
             info_liaison = LIAISONS.get(nature_selectionnee, {"procedure": "", "pieces": ""})
-            partie_ouvrage = st.text_input("🧱 Partie d'ouvrage", placeholder="Ex: Hall RDC Bâtiment A...")
-            situation = st.text_input("📍 Situation / PK", placeholder="Ex: Du PK 0+050 au PK 0+100")
+            partie_ouvrage = st.text_input("🧱 Partie d'ouvrage", placeholder="Ex: Bretelle B, Tranchée 1...")
+            situation = st.text_input("📍 Situation / PK", placeholder="Ex: PK 12+400 au PK 12+800")
         with col2:
-            activite = st.text_area("🚜 Activité réalisée", height=80, placeholder="Ex: Peinture des plafonds...")
+            activite = st.text_area("🚜 Activité réalisée", height=80, placeholder="Ex: Réalisation de la couche de forme...")
             essai = st.selectbox("🧪 Essai / Contrôle réalisé", options=[
                 "Aucun", "ESSAI À LA PLAQUE", "DENSITÉ", "ESSAI À LA PLAQUE + DENSITÉ",
                 "TENEUR EN EAU", "IDENTIFICATION DES MATERIAUX" , "PRELEVEMENT AVANT COMPACTAGE", "PRELEVEMENT APRES COMPACTAGE", "PRELEVEMENT"])
-            procedure = st.text_input("📑 Référence de procédure", value=info_liaison["procedure"])
+            procedure = st.text_input("📑 Référence procédure", value=info_liaison["procedure"])
             pieces_jointes = st.text_area("📎 Pièces jointes", value=info_liaison["pieces"], height=100)
 
-        if st.button("💾 Enregistrer la tâche", type="primary"):
+        if st.button("💾 Enregistrer la Fiche", type="primary"):
             new_entry = {
                 "DATE": date_saisie.strftime('%d/%m/%Y'),
                 "TITRE DE LA NATURE DES TRAVAUX": nature_selectionnee,
@@ -469,32 +404,33 @@ if df is not None:
                 "PIÈCES JOINTES": pieces_jointes
             }
             df_updated = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
-            if source_excel == "Fichier Excel Local":
+            if source_excel == "Fichier système (suivi.xlsx)":
                 save_to_excel_with_formatting(df_updated, chemin_excel_defaut, sheet_name=chantier_actif)
-            st.success("✅ Entrée enregistrée dans le projet !")
+            st.success("✅ Fiche enregistrée avec succès !")
             st.rerun()
 
-    # TAB 2: TABLEAU DES TÂCHES ET EXPORTS
+    # -------------------------------------------------------------
+    # TAB 2 : REGISTRE & GENERATION
+    # -------------------------------------------------------------
     with tab2:
-        st.markdown("<h3 style='color:#0f172a; font-weight:800;'>🔍 Filtrer & Sélectionner les Tâches</h3>", unsafe_allow_html=True)
-        col_partie_name = COL_PARTIE if COL_PARTIE in df.columns else "PARTIE D meOUVRAGE"
-        
-        natures_uniques = sorted([str(x) for x in df['TITRE DE LA NATURE DES TRAVAUX'].unique() if str(x).strip()])
-        parties_uniques = sorted([str(x) for x in df[col_partie_name].unique() if str(x).strip()])
+        st.markdown("##### 🔍 **Registre des Travaux & Exportation**")
 
-        col_f1, col_f2 = st.columns(2)
-        with col_f1:
-            filter_nature = st.multiselect("📌 Nature des travaux (Filtre secondaire)", options=natures_uniques)
-        with col_f2:
-            filter_partie = st.multiselect("🧱 Partie d'Ouvrage", options=parties_uniques)
+        with st.expander("🔻 **Filtres de Recherche Avancés**", expanded=False):
+            col_partie_name = COL_PARTIE if COL_PARTIE in df.columns else "PARTIE D meOUVRAGE"
+            
+            natures_uniques = sorted([str(x) for x in df['TITRE DE LA NATURE DES TRAVAUX'].unique() if str(x).strip()])
+            parties_uniques = sorted([str(x) for x in df[col_partie_name].unique() if str(x).strip()])
 
-        search_text = st.text_input("⚡ Recherche rapide")
+            cf1, cf2 = st.columns(2)
+            with cf1:
+                filter_nature = st.multiselect("📌 Filtrer par Nature", options=natures_uniques)
+            with cf2:
+                filter_partie = st.multiselect("🧱 Filtrer par Partie d'Ouvrage", options=parties_uniques)
 
+            search_text = st.text_input("⚡ Recherche rapide par mot-clé")
+
+        # Application Filtres
         df_filtered = df.copy()
-
-        if nature_selectionnee_sidebar != "📌 Tous les travaux":
-            df_filtered = df_filtered[df_filtered['TITRE DE LA NATURE DES TRAVAUX'] == nature_selectionnee_sidebar]
-
         if filter_nature:
             df_filtered = df_filtered[df_filtered['TITRE DE LA NATURE DES TRAVAUX'].isin(filter_nature)]
         if filter_partie:
@@ -510,7 +446,7 @@ if df is not None:
         edited_df = st.data_editor(
             df_editor,
             num_rows="dynamic",
-            height=380,
+            height=360,
             use_container_width=True
         )
 
@@ -521,8 +457,8 @@ if df is not None:
         col_act1, col_act2 = st.columns(2)
 
         with col_act1:
-            if st.button("💾 Enregistrer les modifications dans Excel"):
-                if source_excel == "Fichier Excel Local":
+            if st.button("💾 Enregistrer les modifications Excel", type="secondary", use_container_width=True):
+                if source_excel == "Fichier système (suivi.xlsx)":
                     df.update(edited_df)
                     save_to_excel_with_formatting(df, chemin_excel_defaut, sheet_name=chantier_actif)
                     st.success("✅ Base Excel mise à jour !")
@@ -530,25 +466,26 @@ if df is not None:
 
         with col_act2:
             if nb_selections == 0:
-                btn_title = "📄 Générer Word & PDF (Cochez au moins une ligne)"
+                btn_title = "📄 Générer Word & PDF (Cochez une ligne)"
             elif nb_selections == 1:
-                btn_title = "📄 Générer Word & PDF (1 Fiche)"
+                btn_title = f"📄 Générer Word & PDF (1 Fiche)"
             else:
-                btn_title = f"📦 Générer Pack ZIP ({nb_selections} Fiches Word + PDF)"
+                btn_title = f"📦 Pack ZIP : {nb_selections} Fiches (Word + PDF)"
 
-            if st.button(btn_title, type="primary"):
+            if st.button(btn_title, type="primary", use_container_width=True):
                 if nb_selections == 0:
-                    st.warning("⚠️ Cochez la case 'Imprimer' pour au moins une ligne.")
+                    st.warning("⚠️ Veuillez cocher la case 'Imprimer' d'au moins une ligne dans le tableau !")
+                
                 elif nb_selections == 1:
                     ligne_choisie = lignes_selectionnees.iloc[0]
                     nom_modele = str(ligne_choisie.get('TITRE DE LA NATURE DES TRAVAUX', '')).strip()
                     chemin_modele = trouver_modele_word(nom_modele)
 
                     if not chemin_modele:
-                        st.error(f"❌ Modèle Word `{nom_modele}.docx` introuvable.")
+                        st.error(f"❌ Le modèle Word `{nom_modele}.docx` est introuvable.")
                     else:
                         try:
-                            with st.spinner("⏳ Génération des documents en cours..."):
+                            with st.spinner("⏳ Génération Word & PDF..."):
                                 val_partie = ligne_choisie.get(COL_PARTIE, ligne_choisie.get("PARTIE D meOUVRAGE", ''))
                                 contexte = {
                                     'NATURE': str(ligne_choisie.get('TITRE DE LA NATURE DES TRAVAUX', '')),
@@ -561,27 +498,31 @@ if df is not None:
                                     'ESSAI': str(ligne_choisie.get('ÉSSAI/ CONTRÔLE RÉALISÉE', ''))
                                 }
                                 docx_bytes, pdf_bytes = generer_docx_et_pdf_bytes(chemin_modele, contexte)
+                                
                                 nom_base = construire_nom_pdf(ligne_choisie).replace(".pdf", "")
 
-                                st.success("✅ Fiches Word & PDF générées avec succès !")
+                                st.success("✅ Fiches générées !")
                                 c_down1, c_down2 = st.columns(2)
                                 with c_down1:
-                                    st.download_button("📝 Télécharger WORD (.docx)", data=docx_bytes, file_name=f"{nom_base}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
+                                    st.download_button("📝 Télécharger WORD", data=docx_bytes, file_name=f"{nom_base}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
                                 with c_down2:
-                                    st.download_button("📕 Télécharger PDF (.pdf)", data=pdf_bytes, file_name=f"{nom_base}.pdf", mime="application/pdf", use_container_width=True)
+                                    st.download_button("📕 Télécharger PDF", data=pdf_bytes, file_name=f"{nom_base}.pdf", mime="application/pdf", use_container_width=True)
                         except Exception as e:
                             st.error(f"❌ Erreur : {e}")
+
                 else:
                     zip_buffer = io.BytesIO()
                     fichiers_crees = 0
 
-                    with st.spinner(f"⏳ Génération du Pack ZIP ({nb_selections} fiches)..."):
+                    with st.spinner(f"⏳ Génération du Pack ({nb_selections} fiches)..."):
                         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
                             for idx, row in lignes_selectionnees.iterrows():
                                 nom_modele = str(row.get('TITRE DE LA NATURE DES TRAVAUX', '')).strip()
                                 chemin_modele = trouver_modele_word(nom_modele)
+
                                 if not chemin_modele:
                                     continue
+
                                 try:
                                     val_partie = row.get(COL_PARTIE, row.get("PARTIE D meOUVRAGE", ''))
                                     contexte = {
@@ -605,11 +546,11 @@ if df is not None:
 
                     if fichiers_crees > 0:
                         zip_buffer.seek(0)
-                        st.success(f"✅ {fichiers_crees} fiches (Word & PDF) prêtes !")
+                        st.success(f"✅ Pack prêt ({fichiers_crees * 2} fichiers) !")
                         st.download_button(
                             label=f"📦 Télécharger le Pack ZIP",
                             data=zip_buffer,
-                            file_name=f"Fiches_Batiscript_{datetime.now().strftime('%Y%m%d_%H%M')}.zip",
+                            file_name=f"Fiches_Chantier_{datetime.now().strftime('%Y%m%d_%H%M')}.zip",
                             mime="application/zip",
                             use_container_width=True
                         )

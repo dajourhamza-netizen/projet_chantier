@@ -220,7 +220,6 @@ def get_col_val(row, *candidates):
     return ""
 
 def generer_docx_et_pdf_bytes(chemin_modele, contexte):
-    """Génération basée sur DocxTemplate (Jinja) pour les fiches individuelles."""
     with tempfile.TemporaryDirectory() as temp_dir:
         doc = DocxTemplate(chemin_modele)
         doc.render(contexte)
@@ -259,12 +258,11 @@ def generer_docx_et_pdf_bytes(chemin_modele, contexte):
 
 def generer_di_style_vba(chemin_modele, df_jour):
     """
-    Traduction exacte du code VBA :
-    Remplissage direct des cellules du tableau Word (sans Jinja / sans {% for %}).
+    Remplissage direct des cellules du tableau Word (Style VBA).
+    Observation est laissée vide à la demande.
     """
     doc = Document(chemin_modele)
     
-    # Recherche du tableau avec au moins 4 colonnes (Logique VBA)
     word_table = None
     for tbl in doc.tables:
         if len(tbl.columns) >= 4:
@@ -274,7 +272,6 @@ def generer_di_style_vba(chemin_modele, df_jour):
     if not word_table:
         raise ValueError("Tableau introuvable dans le document Word (au moins 4 colonnes requises).")
     
-    # Remplissage ligne par ligne
     for idx, (_, row) in enumerate(df_jour.iterrows()):
         date_val = get_col_val(row, "DATE")
         nature_val = get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE")
@@ -282,13 +279,10 @@ def generer_di_style_vba(chemin_modele, df_jour):
         situation_val = get_col_val(row, "SITUATION", "PK")
         activite_val = get_col_val(row, "ACTIVITÉ RÉALISÉE", "ACTIVITE")
         essai_val = get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI")
-        ref_val = get_col_val(row, "RÉFÉRENCE DE PROCÉDURE", "REF")
 
-        # Fusion des cellules comme dans le script VBA
         col2_text = f"{activite_val} - {nature_val}" if (activite_val and nature_val) else (activite_val or nature_val)
         col3_text = f"{partie_val} / {situation_val}" if (partie_val and situation_val) else (partie_val or situation_val)
         
-        # Gestion de la ligne Word cible (réutilise la 2ème ligne ou en ajoute une)
         target_row_idx = idx + 1  # 0 est l'en-tête du tableau
         if target_row_idx < len(word_table.rows):
             row_cells = word_table.rows[target_row_idx].cells
@@ -301,8 +295,9 @@ def generer_di_style_vba(chemin_modele, df_jour):
         row_cells[2].text = col3_text
         row_cells[3].text = essai_val
         
+        # Observation laissee خاوية (vide)
         if len(row_cells) >= 5:
-            row_cells[4].text = ref_val
+            row_cells[4].text = ""
 
     return doc
 
@@ -403,7 +398,6 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 if df is not None:
-    # 📊 Cards KPI
     k1, k2, k3, k4 = st.columns(4)
     with k1:
         st.markdown(f'<div class="kpi-card"><div class="kpi-value">{len(df)}</div><div class="kpi-label">📝 Fiches Enregistrées</div></div>', unsafe_allow_html=True)
@@ -464,7 +458,7 @@ if df is not None:
             st.rerun()
 
     # -------------------------------------------------------------
-    # TAB 2 : REGISTRE & GENERATION
+    # TAB 2 : REGISTRE & GENERATION INDIVIDUELLE
     # -------------------------------------------------------------
     with tab2:
         st.markdown("##### 🔍 **Registre des Travaux & Exportation**")
@@ -607,10 +601,10 @@ if df is not None:
                         )
 
     # -------------------------------------------------------------
-    # TAB 3 : DEMANDES D'INTERVENTION (DI) PAR JOUR
+    # TAB 3 : DEMANDES D'INTERVENTION (DI) PAR JOUR (MULTI-DATES)
     # -------------------------------------------------------------
     with tab3:
-        st.markdown("##### 📅 **Génération des Demandes d'Intervention (DI) par Jour**")
+        st.markdown("##### 📅 **Génération des Demandes d'Intervention (DI) Multi-Dates**")
         
         col_date_name = None
         for c in df.columns:
@@ -624,129 +618,193 @@ if df is not None:
             if not dates_disponibles:
                 st.warning("⚠️ Aucune date enregistrée dans ce projet.")
             else:
-                date_choisie = st.selectbox("🗓️ **Sélectionner la date de la Demande d'Intervention :**", options=dates_disponibles)
+                # SELECTION DE PLUSIEURS DATES EN MEME TEMPS
+                dates_choisies = st.multiselect(
+                    "🗓️ **Sélectionner une ou plusieurs dates :**", 
+                    options=dates_disponibles,
+                    default=[dates_disponibles[0]] if dates_disponibles else []
+                )
 
-                # FILTRAGE PAR DATE DU JOUR
-                df_jour = df[df[col_date_name].astype(str).str.strip() == date_choisie].copy()
+                if not dates_choisies:
+                    st.info("💡 Veuillez sélectionner au moins une date ci-dessus.")
+                else:
+                    df_jours = df[df[col_date_name].astype(str).str.strip().isin(dates_choisies)].copy()
 
-                st.info(f"📍 **{len(df_jour)} intervention(s) / tâche(s) enregistrée(s) pour la journée du {date_choisie} :**")
-                st.dataframe(df_jour, use_container_width=True)
+                    st.info(f"📍 **{len(df_jours)} tâche(s) sélectionnée(s) sur {len(dates_choisies)} date(s) :**")
+                    st.dataframe(df_jours, use_container_width=True)
 
-                st.markdown("---")
-                cdi1, cdi2 = st.columns(2)
+                    st.markdown("---")
+                    cdi1, cdi2 = st.columns(2)
 
-                # OPTION 1 : PACK ZIP DU JOUR
-                with cdi1:
-                    st.markdown("##### 📦 **Option 1 : Générer le Pack ZIP du Jour**")
-                    st.caption("Génère les fiches/DI individuelles en Word et PDF pour toutes les interventions de cette journée.")
-                    
-                    if st.button(f"⚡ Générer toutes les DI du {date_choisie} (ZIP)", type="primary", use_container_width=True):
-                        zip_buffer = io.BytesIO()
-                        fichiers_crees = 0
+                    # OPTION 1 : PACK ZIP DE TOUTES LES FICHES INDIVIDUELLES DES DATES SELECTIONNEES
+                    with cdi1:
+                        st.markdown("##### 📦 **Option 1 : Pack ZIP des Fiches Individuelles**")
+                        st.caption("Génère l'ensemble des fiches/DI individuelles en Word et PDF pour toutes les dates sélectionnées.")
+                        
+                        if st.button("⚡ Générer les fiches individuelles (ZIP)", type="primary", use_container_width=True):
+                            zip_buffer = io.BytesIO()
+                            fichiers_crees = 0
 
-                        with st.spinner(f"⏳ Génération des DI pour le {date_choisie}..."):
-                            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                                for idx, row in df_jour.iterrows():
-                                    nom_modele = get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE")
-                                    chemin_modele = trouver_modele_word(nom_modele)
+                            with st.spinner("⏳ Génération des fiches individuelles..."):
+                                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                                    for idx, row in df_jours.iterrows():
+                                        nom_modele = get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE")
+                                        chemin_modele = trouver_modele_word(nom_modele)
 
-                                    if not chemin_modele:
-                                        continue
+                                        if not chemin_modele:
+                                            continue
 
-                                    try:
-                                        contexte = {
-                                            'NATURE': get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE"),
-                                            'REF': get_col_val(row, "RÉFÉRENCE DE PROCÉDURE", "REF"),
-                                            'PARTIE': get_col_val(row, "PARTIE D'OUVRAGE", "PARTIE D meOUVRAGE", "PARTIE"),
-                                            'SITUATION': get_col_val(row, "SITUATION", "PK"),
-                                            'PIECES': text_to_richtext(get_col_val(row, "PIÈCES JOINTES", "PIECES")),
-                                            'DATE': date_choisie,
-                                            'ACTIVITE': text_to_richtext(get_col_val(row, "ACTIVITÉ RÉALISÉE", "ACTIVITE")),
-                                            'ESSAI': get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI")
-                                        }
-                                        docx_bytes, pdf_bytes = generer_docx_et_pdf_bytes(chemin_modele, contexte)
-                                        nom_base = construire_nom_pdf(row).replace(".pdf", "")
-
-                                        zip_file.writestr(f"DI_{nom_base}.docx", docx_bytes)
-                                        zip_file.writestr(f"DI_{nom_base}.pdf", pdf_bytes)
-                                        fichiers_crees += 1
-                                    except Exception:
-                                        pass
-
-                        if fichiers_crees > 0:
-                            zip_buffer.seek(0)
-                            date_clean = date_choisie.replace("/", "-")
-                            st.success(f"✅ Pack DI du {date_choisie} prêt ({fichiers_crees * 2} fichiers) !")
-                            st.download_button(
-                                label=f"📦 Télécharger le ZIP DI ({date_choisie})",
-                                data=zip_buffer,
-                                file_name=f"Demandes_Intervention_{date_clean}.zip",
-                                mime="application/zip",
-                                use_container_width=True
-                            )
-                        else:
-                            st.error("❌ Aucun modèle Word correspondant aux natures de travaux n'a été trouvé.")
-
-                # OPTION 2 : DI CONSOLIDATION JOURNALIÈRE (LOGIQUE VBA)
-                with cdi2:
-                    st.markdown("##### 📄 **Option 2 : DI Consolidation Journalière (Méthode VBA)**")
-                    st.caption("Génère une seule Demande d'Intervention globale regroupant directement la liste des travaux du jour.")
-
-                    modele_di_global = os.path.join(DOSSIER_CHANTIER, "Demande d'intervention.docx")
-                    if not os.path.exists(modele_di_global):
-                        modele_di_global = os.path.join(DOSSIER_CHANTIER, "Demande_intervention.docx")
-
-                    if st.button(f"📑 Générer la DI globale du {date_choisie}", type="secondary", use_container_width=True):
-                        if not modele_di_global or not os.path.exists(modele_di_global):
-                            st.error("❌ Fichier `Demande d'intervention.docx` introuvable dans le répertoire GitHub.")
-                        else:
-                            try:
-                                with st.spinner("⏳ Remplissage du tableau Word et conversion PDF..."):
-                                    # Génération via la fonction VBA
-                                    doc_rempli = generer_di_style_vba(modele_di_global, df_jour)
-                                    
-                                    with tempfile.TemporaryDirectory() as temp_dir:
-                                        docx_path = os.path.join(temp_dir, "temp_di.docx")
-                                        doc_rempli.save(docx_path)
-                                        
-                                        with open(docx_path, "rb") as f:
-                                            docx_bytes = f.read()
-
-                                        pdf_path = os.path.join(temp_dir, "temp_di.pdf")
-                                        pdf_bytes = None
-
-                                        # Tentative de conversion PDF
                                         try:
-                                            from docx2pdf import convert
-                                            convert(docx_path, pdf_path)
-                                            if os.path.exists(pdf_path):
-                                                with open(pdf_path, "rb") as f:
-                                                    pdf_bytes = f.read()
+                                            contexte = {
+                                                'NATURE': get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE"),
+                                                'REF': get_col_val(row, "RÉFÉRENCE DE PROCÉDURE", "REF"),
+                                                'PARTIE': get_col_val(row, "PARTIE D'OUVRAGE", "PARTIE D meOUVRAGE", "PARTIE"),
+                                                'SITUATION': get_col_val(row, "SITUATION", "PK"),
+                                                'PIECES': text_to_richtext(get_col_val(row, "PIÈCES JOINTES", "PIECES")),
+                                                'DATE': get_col_val(row, "DATE"),
+                                                'ACTIVITE': text_to_richtext(get_col_val(row, "ACTIVITÉ RÉALISÉE", "ACTIVITE")),
+                                                'ESSAI': get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI")
+                                            }
+                                            docx_bytes, pdf_bytes = generer_docx_et_pdf_bytes(chemin_modele, contexte)
+                                            nom_base = construire_nom_pdf(row).replace(".pdf", "")
+
+                                            zip_file.writestr(f"DI_{nom_base}.docx", docx_bytes)
+                                            zip_file.writestr(f"DI_{nom_base}.pdf", pdf_bytes)
+                                            fichiers_crees += 1
                                         except Exception:
                                             pass
 
-                                        if pdf_bytes is None:
-                                            exe_lo = trouver_executable_libreoffice()
-                                            if exe_lo:
-                                                cmd = [exe_lo, "--headless", "--convert-to", "pdf", docx_path, "--outdir", temp_dir]
-                                                subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                                                if os.path.exists(pdf_path):
-                                                    with open(pdf_path, "rb") as f:
-                                                        pdf_bytes = f.read()
+                            if fichiers_crees > 0:
+                                zip_buffer.seek(0)
+                                st.success(f"✅ Pack individuel prêt ({fichiers_crees * 2} fichiers) !")
+                                st.download_button(
+                                    label="📦 Télécharger le ZIP des Fiches",
+                                    data=zip_buffer,
+                                    file_name=f"Fiches_Individuelles_MultiDates.zip",
+                                    mime="application/zip",
+                                    use_container_width=True
+                                )
+                            else:
+                                st.error("❌ Aucun modèle Word correspondant n'a été trouvé.")
 
-                                        if pdf_bytes is None:
-                                            pdf_bytes = docx_bytes
+                    # OPTION 2 : DI CONSOLIDATION JOURNALIÈRE (Méthode VBA)
+                    with cdi2:
+                        st.markdown("##### 📄 **Option 2 : DI Consolidation Journalière (Méthode VBA)**")
+                        st.caption("Génère les Demandes d'Intervention globales regroupées par jour (Observation vide).")
 
-                                        date_clean = date_choisie.replace("/", "-")
-                                        st.success(f"✅ DI Globale générée avec {len(df_jour)} ligne(s) !")
-                                        
-                                        col_d1, col_d2 = st.columns(2)
-                                        with col_d1:
-                                            st.download_button("📝 WORD (DI Globale)", data=docx_bytes, file_name=f"DI_Globale_{date_clean}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
-                                        with col_d2:
-                                            st.download_button("📕 PDF (DI Globale)", data=pdf_bytes, file_name=f"DI_Globale_{date_clean}.pdf", mime="application/pdf", use_container_width=True)
-                            except Exception as e:
-                                st.error(f"❌ Erreur lors de la génération : {e}")
+                        modele_di_global = os.path.join(DOSSIER_CHANTIER, "Demande d'intervention.docx")
+                        if not os.path.exists(modele_di_global):
+                            modele_di_global = os.path.join(DOSSIER_CHANTIER, "Demande_intervention.docx")
+
+                        if st.button("📑 Générer la/les DI Globale(s)", type="secondary", use_container_width=True):
+                            if not modele_di_global or not os.path.exists(modele_di_global):
+                                st.error("❌ Fichier `Demande d'intervention.docx` introuvable dans le répertoire GitHub.")
+                            else:
+                                try:
+                                    with st.spinner("⏳ Remplissage et génération du/des fichier(s)..."):
+                                        # CAS 1 : UNE SEULE DATE SELECTIONNEE
+                                        if len(dates_choisies) == 1:
+                                            d_single = dates_choisies[0]
+                                            df_sub = df[df[col_date_name].astype(str).str.strip() == d_single]
+                                            doc_rempli = generer_di_style_vba(modele_di_global, df_sub)
+
+                                            with tempfile.TemporaryDirectory() as temp_dir:
+                                                docx_path = os.path.join(temp_dir, "temp_di.docx")
+                                                doc_rempli.save(docx_path)
+                                                with open(docx_path, "rb") as f:
+                                                    docx_bytes = f.read()
+
+                                                pdf_path = os.path.join(temp_dir, "temp_di.pdf")
+                                                pdf_bytes = None
+                                                try:
+                                                    from docx2pdf import convert
+                                                    convert(docx_path, pdf_path)
+                                                    if os.path.exists(pdf_path):
+                                                        with open(pdf_path, "rb") as f:
+                                                            pdf_bytes = f.read()
+                                                except Exception:
+                                                    pass
+
+                                                if pdf_bytes is None:
+                                                    exe_lo = trouver_executable_libreoffice()
+                                                    if exe_lo:
+                                                        cmd = [exe_lo, "--headless", "--convert-to", "pdf", docx_path, "--outdir", temp_dir]
+                                                        subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                                        if os.path.exists(pdf_path):
+                                                            with open(pdf_path, "rb") as f:
+                                                                pdf_bytes = f.read()
+
+                                                if pdf_bytes is None:
+                                                    pdf_bytes = docx_bytes
+
+                                                date_clean = d_single.replace("/", "-")
+                                                st.success(f"✅ DI Globale du {d_single} générée avec succès !")
+                                                c_d1, c_d2 = st.columns(2)
+                                                with c_d1:
+                                                    st.download_button("📝 WORD (DI Globale)", data=docx_bytes, file_name=f"DI_Globale_{date_clean}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
+                                                with c_d2:
+                                                    st.download_button("📕 PDF (DI Globale)", data=pdf_bytes, file_name=f"DI_Globale_{date_clean}.pdf", mime="application/pdf", use_container_width=True)
+
+                                        # CAS 2 : PLUSIEURS DATES SELECTIONNEES EN MEME TEMPS (PACK ZIP)
+                                        else:
+                                            zip_buffer_global = io.BytesIO()
+                                            count_files = 0
+
+                                            with zipfile.ZipFile(zip_buffer_global, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                                                for d_single in dates_choisies:
+                                                    df_sub = df[df[col_date_name].astype(str).str.strip() == d_single]
+                                                    if df_sub.empty:
+                                                        continue
+
+                                                    doc_rempli = generer_di_style_vba(modele_di_global, df_sub)
+
+                                                    with tempfile.TemporaryDirectory() as temp_dir:
+                                                        docx_path = os.path.join(temp_dir, "temp_di.docx")
+                                                        doc_rempli.save(docx_path)
+                                                        with open(docx_path, "rb") as f:
+                                                            docx_b = f.read()
+
+                                                        pdf_path = os.path.join(temp_dir, "temp_di.pdf")
+                                                        pdf_b = None
+                                                        try:
+                                                            from docx2pdf import convert
+                                                            convert(docx_path, pdf_path)
+                                                            if os.path.exists(pdf_path):
+                                                                with open(pdf_path, "rb") as f:
+                                                                    pdf_b = f.read()
+                                                        except Exception:
+                                                            pass
+
+                                                        if pdf_b is None:
+                                                            exe_lo = trouver_executable_libreoffice()
+                                                            if exe_lo:
+                                                                cmd = [exe_lo, "--headless", "--convert-to", "pdf", docx_path, "--outdir", temp_dir]
+                                                                subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                                                                if os.path.exists(pdf_path):
+                                                                    with open(pdf_path, "rb") as f:
+                                                                        pdf_b = f.read()
+
+                                                        if pdf_b is None:
+                                                            pdf_b = docx_b
+
+                                                        d_clean = d_single.replace("/", "-")
+                                                        zip_file.writestr(f"DI_Globale_{d_clean}.docx", docx_b)
+                                                        zip_file.writestr(f"DI_Globale_{d_clean}.pdf", pdf_b)
+                                                        count_files += 1
+
+                                            if count_files > 0:
+                                                zip_buffer_global.seek(0)
+                                                st.success(f"✅ Pack DI Globales prêt ({count_files} dates générées) !")
+                                                st.download_button(
+                                                    label="📦 Télécharger le ZIP des DI Globales",
+                                                    data=zip_buffer_global,
+                                                    file_name=f"DI_Globales_MultiDates.zip",
+                                                    mime="application/zip",
+                                                    use_container_width=True
+                                                )
+
+                                except Exception as e:
+                                    st.error(f"❌ Erreur lors de la génération : {e}")
 
         else:
             st.info("💡 Aucune donnée disponible. Veuillez saisir des travaux ou charger un fichier Excel.")

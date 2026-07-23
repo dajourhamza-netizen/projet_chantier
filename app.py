@@ -251,7 +251,6 @@ def generer_docx_et_pdf_bytes(chemin_modele, contexte):
                         pdf_bytes = f.read()
 
         if pdf_bytes is None:
-            # Si aucune conversion PDF n'est possible, on renvoie docx_bytes à la place de pdf_bytes
             pdf_bytes = docx_bytes
 
         return docx_bytes, pdf_bytes
@@ -297,7 +296,7 @@ def save_to_excel_with_formatting(df_to_save, filepath, sheet_name="Chantier Pri
         return False, f"❌ Erreur : {e}"
 
 def get_col_val(row, *candidates):
-    """Extraction intelligente des valeurs pour parer aux fautes d'orthographe/espaces dans Excel."""
+    """Extraction intelligente des valeurs de colonnes."""
     for c in candidates:
         for col in row.index:
             if str(col).strip().lower() == str(c).strip().lower():
@@ -355,7 +354,6 @@ else:
 # 3. INTERFACE PRINCIPALE
 # ==========================================
 
-# Banner Title
 st.markdown(f"""
 <div class="gc-header">
     <h1>🛣️ Plateforme Génie Civil & Travaux Routiers</h1>
@@ -381,7 +379,6 @@ if df is not None:
 
     st.write("")
 
-    # --- 3 ONGLETS ---
     tab1, tab2, tab3 = st.tabs([
         "📝 **Nouvelle Saisie Chantier**", 
         "📊 **Registre & Génération Individuelle**", 
@@ -446,7 +443,6 @@ if df is not None:
 
             search_text = st.text_input("⚡ Recherche rapide par mot-clé")
 
-        # Application Filtres
         df_filtered = df.copy()
         if filter_nature and col_nat_name in df_filtered.columns:
             df_filtered = df_filtered[df_filtered[col_nat_name].isin(filter_nature)]
@@ -575,7 +571,7 @@ if df is not None:
     with tab3:
         st.markdown("##### 📅 **Génération des Demandes d'Intervention (DI) par Jour**")
         
-        # Identification de la colonne Date
+        # Detection de la colonne Date
         col_date_name = None
         for c in df.columns:
             if str(c).strip().lower() == "date":
@@ -590,9 +586,10 @@ if df is not None:
             else:
                 date_choisie = st.selectbox("🗓️ **Sélectionner la date de la Demande d'Intervention :**", options=dates_disponibles)
 
+                # FILTRAGE : Seules les lignes/tâches du jour choisi sont retenues
                 df_jour = df[df[col_date_name].astype(str).str.strip() == date_choisie].copy()
 
-                st.info(f"📍 **{len(df_jour)} intervention(s) / tâche(s) programmée(s) pour la journée du {date_choisie} :**")
+                st.info(f"📍 **{len(df_jour)} intervention(s) / tâche(s) enregistrée(s) pour la journée du {date_choisie} :**")
                 
                 st.dataframe(df_jour, use_container_width=True)
 
@@ -651,12 +648,11 @@ if df is not None:
                         else:
                             st.error("❌ Aucun modèle Word correspondant aux natures de travaux n'a été trouvé.")
 
-                # OPTION 2 : FICHE DE SYNTHÈSE DI UNIQUE POUR LE JOUR
+                # OPTION 2 : CONSOLIDATION EN UNE SEULE DI GLOBALE
                 with cdi2:
                     st.markdown("##### 📄 **Option 2 : DI Consolidation Journalière**")
                     st.caption("Génère une seule Demande d'Intervention globale regroupant la liste des travaux du jour.")
 
-                    # Recherche directe et stricte du fichier
                     modele_di_global = os.path.join(DOSSIER_CHANTIER, "Demande d'intervention.docx")
                     if not os.path.exists(modele_di_global):
                         modele_di_global = os.path.join(DOSSIER_CHANTIER, "Demande_intervention.docx")
@@ -665,11 +661,13 @@ if df is not None:
 
                     if st.button(f"📑 Générer la DI globale du {date_choisie}", type="secondary", use_container_width=True):
                         if not modele_di_global or not os.path.exists(modele_di_global):
-                            st.error("❌ Fichier `Demande d'intervention.docx` introuvable sur le répertoire GitHub.")
+                            st.error("❌ Fichier `Demande d'intervention.docx` introuvable dans le répertoire GitHub.")
                         else:
                             try:
                                 with st.spinner("⏳ Génération de la DI globale journalière..."):
                                     liste_activites = []
+                                    
+                                    # Formate les lignes uniquement pour les tâches du jour
                                     for _, row in df_jour.iterrows():
                                         nature = get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE", "NATURE DES TRAVAUX")
                                         partie = get_col_val(row, "PARTIE D'OUVRAGE", "PARTIE D meOUVRAGE", "PARTIE OUVRAGE", "PARTIE")
@@ -678,13 +676,20 @@ if df is not None:
                                         essai = get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI/ CONTROL REALISEE", "ESSAI", "CONTROLE")
                                         ref = get_col_val(row, "RÉFÉRENCE DE PROCÉDURE", "REFERENCE DE PROCEDURE", "REF")
 
+                                        # Combinaisons pour le tableau (ex: "27éme couche - REMBLAIS CONTIGUS")
+                                        act_nat = f"{activite} - {nature}" if (activite and nature) else (activite or nature)
+                                        partie_sit = f"{partie} / {situation}" if (partie and situation) else (partie or situation)
+
                                         liste_activites.append({
+                                            'DATE': date_choisie,
                                             'NATURE': nature,
                                             'PARTIE': partie,
                                             'SITUATION': situation,
                                             'ACTIVITE': activite,
                                             'ESSAI': essai,
-                                            'REF': ref
+                                            'REF': ref,
+                                            'ACTIVITE_NATURE': act_nat,
+                                            'PARTIE_SITUATION': partie_sit
                                         })
 
                                     contexte_global = {

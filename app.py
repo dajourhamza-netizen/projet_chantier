@@ -58,7 +58,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1. FONCTIONS UTILITAIRES
+# 1. FONCTIONS UTILITAIRES & SYSTEME
 # ==========================================
 
 DOSSIER_CHANTIER = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
@@ -75,15 +75,84 @@ COLUMNS_TEMPLATE = [
     "RÉFÉRENCE DE PROCÉDURE", "PIÈCES JOINTES"
 ]
 
+# 📋 Dictionnaire complet selon votre tableau d'image
 LIAISONS = {
-    "ARASE DE PST": {"procedure": "TER-PEX-05-00", "pieces": "* Fiche de suivi de la PST\n* Fiche de réception topographique\n* PVs laboratoire"},
-    "ARASE DE TERRASSEMENT": {"procedure": "TER-PEX-03-00", "pieces": "* Fiche de contrôle des déblais\n* Fiche de réception topographique\n* PVs laboratoire"},
-    "ASSISE DE REMBLAIS PURGE": {"procedure": "TER-PEX-04-00", "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* Fiche d'identification de la purge\n* PVs laboratoire"},
-    "ASSISE DE REMBLAIS": {"procedure": "TER-PEX-04-00", "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* PVs laboratoire"},
-    "COUCHE DE FORME": {"procedure": "TER-PEX-09-00", "pieces": "* Fiche de suivi et de contrôle de la CDF\n* Fiche de réception topographique\n* PVs laboratoire"},
-    "REMBLAIS": {"procedure": "TER-PEX-04-00", "pieces": "* Fiche de suivi et de contrôle des remblais\n* PVs laboratoire"},
-    "REMBLAIS CONTIGUS": {"procedure": "OVA-PEX-16-00", "pieces": "* Fiche de suivi des remblais contigus\n* PVs laboratoire"},
-    "REMBLAIS RENFORCE": {"procedure": "TER-PEX-13-00", "pieces": "* Fiche de suivi des remblais renforcé\n* PVs laboratoire"}
+    "ARASE DE PST": {
+        "procedure": "TER-PEX-05-00",
+        "pieces": "* Fiche de suivi de la PST\n* Fiche de réception topographique\n* PVs laboratoire"
+    },
+    "ARASE DE TERRASSEMENT": {
+        "procedure": "TER-PEX-03-00",
+        "pieces": "* Fiche de contrôle des déblais\n* Fiche de réception topographique\n* PVs laboratoire"
+    },
+    "ASSISE DE REMBLAIS PURGE": {
+        "procedure": "TER-PEX-04-00",
+        "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* Fiche d'identification de la purge\n* PVs laboratoire"
+    },
+    "ASSISE DE REMBLAIS": {
+        "procedure": "TER-PEX-04-00",
+        "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* PVs laboratoire"
+    },
+    "ASSISE DE REMBLAIS CDF": {
+        "procedure": "TER-PEX-04-00",
+        "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* PVs laboratoire"
+    },
+    "ASSISE DE REMBLAIS CONTIGUS": {
+        "procedure": "OVA-PEX-16-00",
+        "pieces": "* Fiche de suivi des remblais contigus\n* Fiche de contrôle des remblais contigus\n* PVs laboratoire\n* Fiche de réception topographique"
+    },
+    "ASSISE DE REMBLAI DE FOUILLE": {
+        "procedure": "OVA-PEX-04-00",
+        "pieces": "* Fiche de suivi et de contrôle des fouilles et remblaiement de fouilles\n* PVs laboratoire"
+    },
+    "ASSISE DE REMBLAIS RENFORCE": {
+        "procedure": "TER-PEX-13-00",
+        "pieces": "* PV Manifold\n* PVs laboratoire\n* Fiche de réception topographique\n* Fiche de réception assise remblai renforcé"
+    },
+    "ASSISE DRAINANTE": {
+        "procedure": "TER-PEX-13-00",
+        "pieces": "* Fiche de réception topographique\n* PVs laboratoire\n* Fiche de contrôle de l'assise drainante"
+    },
+    "COUCHE DE FORME": {
+        "procedure": "TER-PEX-09-00",
+        "pieces": "* Fiche de suivi et de contrôle de la CDF\n* Fiche de réception topographique\n* PVs laboratoire"
+    },
+    "DÉCAPAGE": {
+        "procedure": "TER-PEX-02-00",
+        "pieces": "* Fiche de suivi et de contrôle du décapage\n* Fiche des sections à décaper\n* Fiche de réception topographique"
+    },
+    "DEGAGEMENT D'EMPRISE": {
+        "procedure": "TER-PEX-01-00",
+        "pieces": "* Fiche de suivi et de contrôle du dégagement des emprises\n* Fiche de réception topographique\n* Constat dégagement d'emprise"
+    },
+    "REMBLAIS": {
+        "procedure": "TER-PEX-04-00",
+        "pieces": "* Fiche de suivi et de contrôle des remblais\n* PVs laboratoire"
+    },
+    "REMBLAIS CDF": {
+        "procedure": "TER-PEX-04-00",
+        "pieces": "* Fiche de suivi et de contrôle des remblais\n* PVs laboratoire"
+    },
+    "REMBLAIS CONTIGUS": {
+        "procedure": "OVA-PEX-16-00",
+        "pieces": "* Fiche de suivi des remblais contigus\n* Fiche de contrôle des remblais contigus\n* PVs laboratoire\n* Fiche de réception topographique"
+    },
+    "REMBLAIS DE FOUILLE": {
+        "procedure": "OVA-PEX-04-00",
+        "pieces": "* Fiche de suivi et de contrôle des fouilles et remblaiement de fouilles\n* PVs laboratoire"
+    },
+    "REMBLAIS DE FOUILLS CDF": {
+        "procedure": "OVA-PEX-04-00",
+        "pieces": "* Fiche de suivi et de contrôle des fouilles et remblaiement de fouilles\n* PVs laboratoire"
+    },
+    "REMBLAIS RENFORCE": {
+        "procedure": "TER-PEX-13-00",
+        "pieces": "* Fiche de suivi des remblais renforcé\n* Fiche de contrôle des armatures Geostrap\n* Fiche de réception de pose des ecailles\n* PVs laboratoire"
+    },
+    "REMBLAIS PST": {
+        "procedure": "TER-PEX-05-00",
+        "pieces": "* Fiche de suivi et de contrôle des remblais PST\n* PVs laboratoire"
+    }
 }
 
 def text_to_richtext(text):
@@ -194,12 +263,10 @@ def get_sheet_names(filepath):
 
 def save_to_excel_with_formatting(df_to_save, filepath, sheet_name="Chantier Principal"):
     try:
-        # 1. Clean data before save
         df_clean = df_to_save.copy()
         if "Imprimer" in df_clean.columns:
             df_clean = df_clean.drop(columns=["Imprimer"])
 
-        # 2. Convert DATE column to real DATETIME & SORT IT!
         if "DATE" in df_clean.columns:
             df_clean["DATE"] = pd.to_datetime(df_clean["DATE"], dayfirst=True, errors='coerce')
             df_clean = df_clean.sort_values(by="DATE", ascending=True)
@@ -209,17 +276,14 @@ def save_to_excel_with_formatting(df_to_save, filepath, sheet_name="Chantier Pri
         if mode == "a": kwargs["if_sheet_exists"] = "replace"
 
         with pd.ExcelWriter(filepath, **kwargs) as writer:
-            # Format date for Excel export
             df_clean.to_excel(writer, sheet_name=sheet_name, index=False)
             worksheet = writer.sheets[sheet_name]
             
-            # Format columns width & Date formats
             for col_idx, column in enumerate(worksheet.columns, start=1):
                 max_len = max(len(str(cell.value or "")) for cell in column)
                 col_letter = column[0].column_letter
                 worksheet.column_dimensions[col_letter].width = min(max_len + 4, 60)
                 
-                # Format Date column specifically as DD/MM/YYYY in Excel
                 if column[0].value == "DATE":
                     for cell in column[1:]:
                         if cell.value:
@@ -254,7 +318,6 @@ if os.path.exists(chemin_excel_defaut):
     try:
         df = pd.read_excel(chemin_excel_defaut, sheet_name=chantier_actif).fillna("")
         if "DATE" in df.columns:
-            # Parse dates properly & sort
             df["DATE"] = pd.to_datetime(df["DATE"], dayfirst=True, errors='coerce')
             df = df.sort_values(by="DATE", ascending=True)
             df["DATE"] = df["DATE"].dt.strftime('%d/%m/%Y').fillna("")
@@ -314,7 +377,6 @@ if df is not None:
             }
             df_updated = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
             
-            # Save to Excel
             success, msg = save_to_excel_with_formatting(df_updated, chemin_excel_defaut, sheet_name=chantier_actif)
             if success:
                 st.success(msg)

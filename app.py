@@ -19,30 +19,30 @@ from openpyxl.utils import get_column_letter
 # ==========================================
 st.set_page_config(
     page_title="Suivi Chantier - Génie Civil & Routes",
-    page_icon="🚧",
+    page_icon="🏗️",
     layout="wide"
 )
 
-# 🎨 Injecting Custom Civil Engineering / Highway CSS Theme
+# 🎨 Custom Civil Engineering / Highway CSS Theme
 st.markdown("""
 <style>
-    /* Background General - Gris Béton Clair */
+    /* Background General */
     .stApp {
-        background-color: #F4F6F6;
+        background-color: #f8fafc;
     }
     
-    /* Main Banner Header - Asphalte et Jaune Engin */
+    /* Main Banner Header */
     .gc-header {
-        background: linear-gradient(135deg, #1C2833 0%, #2C3E50 100%);
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
         color: #ffffff;
         padding: 22px 28px;
         border-radius: 12px;
-        border-left: 8px solid #F1C40F; /* Jaune Engin (Construction Yellow) */
-        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15);
+        border-left: 8px solid #ff6b00; /* Safety Orange Accent */
+        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.08);
         margin-bottom: 25px;
     }
     .gc-header h1 {
-        color: #F1C40F !important;
+        color: #ffffff !important;
         font-size: 26px !important;
         font-weight: 800 !important;
         margin: 0 !important;
@@ -50,38 +50,38 @@ st.markdown("""
         letter-spacing: 0.5px;
     }
     .gc-header p {
-        color: #D5D8DC;
+        color: #94a3b8;
         margin: 6px 0 0 0;
         font-size: 14px;
     }
 
-    /* KPI Cards Styling - Bordure Orange Sécurité */
+    /* KPI Cards Styling */
     .kpi-card {
         background-color: #ffffff;
-        border: 1px solid #BDC3C7;
-        border-top: 4px solid #E67E22; /* Orange Chantier */
+        border: 1px solid #e2e8f0;
+        border-top: 4px solid #ff6b00;
         border-radius: 10px;
         padding: 16px;
         text-align: center;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.03);
     }
     .kpi-value {
         font-size: 24px;
         font-weight: 800;
-        color: #2C3E50;
+        color: #0f172a;
     }
     .kpi-label {
         font-size: 11px;
         font-weight: 600;
-        color: #7F8C8D;
+        color: #64748b;
         text-transform: uppercase;
         letter-spacing: 0.5px;
         margin-top: 4px;
     }
 
-    /* Customizing Buttons - Orange Chantier */
+    /* Customizing Buttons */
     .stButton > button[kind="primary"] {
-        background-color: #E67E22 !important;
+        background-color: #ff6b00 !important;
         color: #ffffff !important;
         border: none !important;
         border-radius: 8px !important;
@@ -90,21 +90,20 @@ st.markdown("""
         transition: all 0.2s ease-in-out !important;
     }
     .stButton > button[kind="primary"]:hover {
-        background-color: #D35400 !important;
-        box-shadow: 0 4px 12px rgba(211, 84, 0, 0.3) !important;
+        background-color: #e05e00 !important;
+        box-shadow: 0 4px 12px rgba(255, 107, 0, 0.25) !important;
     }
 
-    /* Sidebar Customization - Asphalte Sombre w M9sem b Sfer */
+    /* Sidebar Customization */
     section[data-testid="stSidebar"] {
-        background-color: #17202A !important;
+        background-color: #0f172a !important;
         color: #ffffff !important;
-        border-right: 3px solid #F1C40F !important;
     }
     section[data-testid="stSidebar"] .stMarkdown h1, 
     section[data-testid="stSidebar"] .stMarkdown h2, 
     section[data-testid="stSidebar"] .stMarkdown h3,
     section[data-testid="stSidebar"] label {
-        color: #F1C40F !important;
+        color: #f1f5f9 !important;
     }
 
     /* Tab Design */
@@ -115,14 +114,14 @@ st.markdown("""
         background-color: #ffffff;
         border-radius: 8px;
         padding: 10px 20px;
-        border: 1px solid #BDC3C7;
+        border: 1px solid #e2e8f0;
         font-weight: 700;
-        color: #34495E;
+        color: #475569;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #F1C40F !important;
-        color: #1C2833 !important;
-        border-color: #F1C40F !important;
+        background-color: #ff6b00 !important;
+        color: #ffffff !important;
+        border-color: #ff6b00 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -299,7 +298,7 @@ def save_to_excel_with_formatting(df_to_save, filepath, sheet_name="Chantier Pri
 # ==========================================
 # 2. BARRE LATÉRALE (SIDEBAR)
 # ==========================================
-st.sidebar.markdown("### 🚧 **Gestion de Chantier**")
+st.sidebar.markdown("### 🏗️ **Gestion de Chantier**")
 
 chantiers_existants = get_sheet_names(chemin_excel_defaut)
 chantier_actif = st.sidebar.selectbox("📌 **Projet / Tronçon Actif :**", options=chantiers_existants)
@@ -349,7 +348,7 @@ else:
 st.markdown(f"""
 <div class="gc-header">
     <h1>🛣️ Plateforme Génie Civil & Travaux Routiers</h1>
-    <p>Gestion des suivi de travaux, fiches de contrôle & édition automatique des documents Word/PDF | Projet : <b>{chantier_actif}</b></p>
+    <p>Gestion des suivis de travaux, fiches de contrôle & édition automatique des documents Word/PDF | Projet : <b>{chantier_actif}</b></p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -366,11 +365,16 @@ if df is not None:
         nb_parties = df[col_p].nunique() if col_p in df.columns else 0
         st.markdown(f'<div class="kpi-card"><div class="kpi-value">{nb_parties}</div><div class="kpi-label">🧱 Parties d\'Ouvrage</div></div>', unsafe_allow_html=True)
     with k4:
-        st.markdown(f'<div class="kpi-card"><div class="kpi-value" style="color:#27AE60;">Active</div><div class="kpi-label">⚙️ État du Système</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="kpi-card"><div class="kpi-value" style="color:#ff6b00;">Active</div><div class="kpi-label">⚙️ État du Système</div></div>', unsafe_allow_html=True)
 
     st.write("")
 
-    tab1, tab2 = st.tabs(["📝 **Nouvelle Saisie Chantier**", "📊 **Registre & Génération Word / PDF**"])
+    # --- 3 ONGLETS ---
+    tab1, tab2, tab3 = st.tabs([
+        "📝 **Nouvelle Saisie Chantier**", 
+        "📊 **Registre & Génération Individuelle**", 
+        "📅 **Demandes d'Intervention (DI) par Jour**"
+    ])
 
     # -------------------------------------------------------------
     # TAB 1 : SAISIE
@@ -554,5 +558,137 @@ if df is not None:
                             mime="application/zip",
                             use_container_width=True
                         )
+
+    # -------------------------------------------------------------
+    # TAB 3 : DEMANDES D'INTERVENTION (DI) PAR JOUR
+    # -------------------------------------------------------------
+    with tab3:
+        st.markdown("##### 📅 **Génération des Demandes d'Intervention (DI) par Jour**")
+        
+        if 'DATE' in df.columns and not df.empty:
+            dates_disponibles = [str(d).strip() for d in df['DATE'].unique() if str(d).strip()]
+            
+            if not dates_disponibles:
+                st.warning("⚠️ Aucune date enregistrée dans ce projet.")
+            else:
+                date_choisie = st.selectbox("🗓️ **Sélectionner la date de la Demande d'Intervention :**", options=dates_disponibles)
+
+                df_jour = df[df['DATE'].astype(str).str.strip() == date_choisie].copy()
+                col_partie_name = COL_PARTIE if COL_PARTIE in df.columns else "PARTIE D meOUVRAGE"
+
+                st.info(f"📍 **{len(df_jour)} intervention(s) / tâche(s) programmée(s) pour la journée du {date_choisie} :**")
+                
+                cols_display = ["TITRE DE LA NATURE DES TRAVAUX", col_partie_name, "SITUATION", "ACTIVITÉ RÉALISÉE", "ÉSSAI/ CONTRÔLE RÉALISÉE"]
+                st.dataframe(df_jour[[c for c in cols_display if c in df_jour.columns]], use_container_width=True)
+
+                st.markdown("---")
+                cdi1, cdi2 = st.columns(2)
+
+                # OPTION 1 : PACK ZIP DU JOUR
+                with cdi1:
+                    st.markdown("##### 📦 **Option 1 : Générer le Pack ZIP du Jour**")
+                    st.caption("Génère les fiches/DI individuelles en Word et PDF pour toutes les interventions de cette journée.")
+                    
+                    if st.button(f"⚡ Générer toutes les DI du {date_choisie} (ZIP)", type="primary", use_container_width=True):
+                        zip_buffer = io.BytesIO()
+                        fichiers_crees = 0
+
+                        with st.spinner(f"⏳ Génération des DI pour le {date_choisie}..."):
+                            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                                for idx, row in df_jour.iterrows():
+                                    nom_modele = str(row.get('TITRE DE LA NATURE DES TRAVAUX', '')).strip()
+                                    chemin_modele = trouver_modele_word(nom_modele)
+
+                                    if not chemin_modele:
+                                        continue
+
+                                    try:
+                                        val_partie = row.get(COL_PARTIE, row.get("PARTIE D meOUVRAGE", ''))
+                                        contexte = {
+                                            'NATURE': str(row.get('TITRE DE LA NATURE DES TRAVAUX', '')),
+                                            'REF': str(row.get('RÉFÉRENCE DE PROCÉDURE', '')),
+                                            'PARTIE': str(val_partie),
+                                            'SITUATION': str(row.get('SITUATION', '')),
+                                            'PIECES': text_to_richtext(row.get('PIÈCES JOINTES', '')),
+                                            'DATE': str(row.get('DATE', '')),
+                                            'ACTIVITE': text_to_richtext(row.get('ACTIVITÉ RÉALISÉE', '')),
+                                            'ESSAI': str(row.get('ÉSSAI/ CONTRÔLE RÉALISÉE', ''))
+                                        }
+                                        docx_bytes, pdf_bytes = generer_docx_et_pdf_bytes(chemin_modele, contexte)
+                                        nom_base = construire_nom_pdf(row).replace(".pdf", "")
+
+                                        zip_file.writestr(f"DI_{nom_base}.docx", docx_bytes)
+                                        zip_file.writestr(f"DI_{nom_base}.pdf", pdf_bytes)
+                                        fichiers_crees += 1
+                                    except Exception:
+                                        pass
+
+                        if fichiers_crees > 0:
+                            zip_buffer.seek(0)
+                            date_clean = date_choisie.replace("/", "-")
+                            st.success(f"✅ Pack DI du {date_choisie} prêt ({fichiers_crees * 2} fichiers) !")
+                            st.download_button(
+                                label=f"📦 Télécharger le ZIP DI ({date_choisie})",
+                                data=zip_buffer,
+                                file_name=f"Demandes_Intervention_{date_clean}.zip",
+                                mime="application/zip",
+                                use_container_width=True
+                            )
+                        else:
+                            st.error("❌ Aucun modèle Word correspondant aux natures de travaux n'a été trouvé.")
+
+                # OPTION 2 : FICHE DE SYNTHÈSE DI UNIQUE POUR LE JOUR
+                with cdi2:
+                    st.markdown("##### 📄 **Option 2 : DI Consolidation Journalière**")
+                    st.caption("Génère une seule Demande d'Intervention globale regroupant la liste des travaux du jour.")
+
+                    # Recherche multi-noms pour s'adapter à "Demande d'intervention.docx", "Demande_Intervention.docx" ou "DI.docx"
+                    modele_di_global = (
+                        trouver_modele_word("Demande d'intervention") or 
+                        trouver_modele_word("Demande_Intervention") or 
+                        trouver_modele_word("Demande d intervention") or 
+                        trouver_modele_word("DI")
+                    )
+
+                    if st.button(f"📑 Générer la DI globale du {date_choisie}", type="secondary", use_container_width=True):
+                        if not modele_di_global:
+                            st.warning("⚠️ Modèle introuvable. Veuillez vérifier que `Demande d'intervention.docx` est présent sur GitHub.")
+                        else:
+                            try:
+                                with st.spinner("⏳ Génération de la DI globale journalière..."):
+                                    liste_activites = []
+                                    for _, row in df_jour.iterrows():
+                                        val_partie = row.get(COL_PARTIE, row.get("PARTIE D meOUVRAGE", ''))
+                                        liste_activites.append({
+                                            'NATURE': str(row.get('TITRE DE LA NATURE DES TRAVAUX', '')),
+                                            'PARTIE': str(val_partie),
+                                            'SITUATION': str(row.get('SITUATION', '')),
+                                            'ACTIVITE': str(row.get('ACTIVITÉ RÉALISÉE', '')),
+                                            'ESSAI': str(row.get('ÉSSAI/ CONTRÔLE RÉALISÉE', '')),
+                                            'REF': str(row.get('RÉFÉRENCE DE PROCÉDURE', ''))
+                                        })
+
+                                    contexte_global = {
+                                        'DATE': date_choisie,
+                                        'PROJET': chantier_actif,
+                                        'TRAVAUX': liste_activites,
+                                        'NB_TRAVAUX': len(liste_activites)
+                                    }
+
+                                    docx_bytes, pdf_bytes = generer_docx_et_pdf_bytes(modele_di_global, contexte_global)
+                                    date_clean = date_choisie.replace("/", "-")
+
+                                    st.success("✅ DI Globale générée !")
+                                    g_col1, g_col2 = st.columns(2)
+                                    with g_col1:
+                                        st.download_button("📝 WORD (DI Globale)", data=docx_bytes, file_name=f"DI_Globale_{date_clean}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
+                                    with g_col2:
+                                        st.download_button("📕 PDF (DI Globale)", data=pdf_bytes, file_name=f"DI_Globale_{date_clean}.pdf", mime="application/pdf", use_container_width=True)
+                            except Exception as e:
+                                st.error(f"❌ Erreur : {e}")
+
+        else:
+            st.info("💡 Aucune donnée disponible pour le moment. Veuillez saisir des travaux ou charger un fichier Excel.")
+
 else:
     st.info("💡 Veuillez charger un fichier Excel pour commencer.")

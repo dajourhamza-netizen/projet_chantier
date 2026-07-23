@@ -562,27 +562,70 @@ if df is not None:
     # -------------------------------------------------------------
     # TAB 3 : DEMANDES D'INTERVENTION (DI) PAR JOUR
     # -------------------------------------------------------------
-    with tab3:
-        st.markdown("##### 📅 **Génération des Demandes d'Intervention (DI) par Jour**")
-        
-        if 'DATE' in df.columns and not df.empty:
-            dates_disponibles = [str(d).strip() for d in df['DATE'].unique() if str(d).strip()]
-            
-            if not dates_disponibles:
-                st.warning("⚠️ Aucune date enregistrée dans ce projet.")
-            else:
-                date_choisie = st.selectbox("🗓️ **Sélectionner la date de la Demande d'Intervention :**", options=dates_disponibles)
+   # OPTION 2 : FICHE DE SYNTHÈSE DI UNIQUE POUR LE JOUR
+with cdi2:
+    st.markdown("##### 📄 **Option 2 : DI Consolidation Journalière**")
+    st.caption("Génère une seule Demande d'Intervention globale regroupant la liste des travaux du jour.")
 
-                df_jour = df[df['DATE'].astype(str).str.strip() == date_choisie].copy()
-                col_partie_name = COL_PARTIE if COL_PARTIE in df.columns else "PARTIE D meOUVRAGE"
+    modele_di_global = (
+        trouver_modele_word("Demande d'intervention") or 
+        trouver_modele_word("Demande_Intervention") or 
+        trouver_modele_word("DI")
+    )
 
-                st.info(f"📍 **{len(df_jour)} intervention(s) / tâche(s) programmée(s) pour la journée du {date_choisie} :**")
-                
-                cols_display = ["TITRE DE LA NATURE DES TRAVAUX", col_partie_name, "SITUATION", "ACTIVITÉ RÉALISÉE", "ÉSSAI/ CONTRÔLE RÉALISÉE"]
-                st.dataframe(df_jour[[c for c in cols_display if c in df_jour.columns]], use_container_width=True)
+    if st.button(f"📑 Générer la DI globale du {date_choisie}", type="secondary", use_container_width=True):
+        if not modele_di_global:
+            st.warning("⚠️ Modèle introuvable. Assurez-vous que `Demande d'intervention.docx` est présent sur GitHub.")
+        else:
+            try:
+                with st.spinner("⏳ Génération de la DI globale journalière..."):
+                    
+                    # Fonction helper pour trouver la bonne colonne dans l'Excel
+                    def get_col_val(row, *candidates):
+                        for c in candidates:
+                            for col in row.index:
+                                if str(col).strip().lower() == str(c).strip().lower():
+                                    val = str(row[col]).strip()
+                                    if val and val != "nan":
+                                        return val
+                        return ""
 
-                st.markdown("---")
-                cdi1, cdi2 = st.columns(2)
+                    liste_activites = []
+                    for _, row in df_jour.iterrows():
+                        nature = get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE", "NATURE DES TRAVAUX")
+                        partie = get_col_val(row, "PARTIE D'OUVRAGE", "PARTIE D meOUVRAGE", "PARTIE OUVRAGE", "PARTIE")
+                        situation = get_col_val(row, "SITUATION", "PK", "LOCALISATION")
+                        activite = get_col_val(row, "ACTIVITÉ RÉALISÉE", "ACTIVITE REALISEE", "ACTIVITE")
+                        essai = get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI/ CONTROL REALISEE", "ESSAI", "CONTROLE")
+                        ref = get_col_val(row, "RÉFÉRENCE DE PROCÉDURE", "REFERENCE DE PROCEDURE", "REF")
+
+                        liste_activites.append({
+                            'NATURE': nature,
+                            'PARTIE': partie,
+                            'SITUATION': situation,
+                            'ACTIVITE': activite,
+                            'ESSAI': essai,
+                            'REF': ref
+                        })
+
+                    contexte_global = {
+                        'DATE': date_choisie,
+                        'PROJET': chantier_actif,
+                        'TRAVAUX': liste_activites,
+                        'NB_TRAVAUX': len(liste_activites)
+                    }
+
+                    docx_bytes, pdf_bytes = generer_docx_et_pdf_bytes(modele_di_global, contexte_global)
+                    date_clean = date_choisie.replace("/", "-")
+
+                    st.success(f"✅ DI Globale générée avec {len(liste_activites)} ligne(s) !")
+                    g_col1, g_col2 = st.columns(2)
+                    with g_col1:
+                        st.download_button("📝 WORD (DI Globale)", data=docx_bytes, file_name=f"DI_Globale_{date_clean}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
+                    with g_col2:
+                        st.download_button("📕 PDF (DI Globale)", data=pdf_bytes, file_name=f"DI_Globale_{date_clean}.pdf", mime="application/pdf", use_container_width=True)
+            except Exception as e:
+                st.error(f"❌ Erreur lors de la génération : {e}")
 
                 # OPTION 1 : PACK ZIP DU JOUR
                 with cdi1:

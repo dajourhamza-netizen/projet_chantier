@@ -429,7 +429,7 @@ def save_to_excel_with_formatting(
 # ==========================================
 # 2. BARRE LATÉRALE (SIDEBAR) & GESTION PROJETS
 # ==========================================
-st.sidebar.markdown("### 🏗️ **Gestion de Chantier**")
+st.sidebar.markdown("### 🏗️ **Gestion des Chantiers**")
 
 chantiers_existants = get_sheet_names(chemin_excel_defaut)
 chantier_actif = st.sidebar.selectbox(
@@ -490,7 +490,7 @@ if os.path.exists(chemin_excel_defaut):
 st.markdown(
     f"""
 <div class="gc-header">
-    <h1>🛣️ Plateforme Génie Civil & Travaux Routiers</h1>
+    <h1>🛣️ Plateforme SUIVI Génie Civil & Travaux Routiers</h1>
     <p>Projet Actif : <b>{chantier_actif}</b></p>
 </div>
 """,
@@ -508,7 +508,7 @@ if df is not None:
   # TAB 1 : SAISIE (MODIFIÉ AVEC LISTE DYNAMIQUE PARTIE D'OUVRAGE)
   # -------------------------------------------------------------
   with tab1:
-    st.markdown("##### 👷 **Ajouter une nouvelle fiche de contrôle**")
+    st.markdown("##### 👷 **Ajouter une nouvelle Tâche**")
     col1, col2 = st.columns(2)
     with col1:
       date_saisie = st.date_input(
@@ -557,7 +557,7 @@ if df is not None:
       )
 
     with col2:
-      activite = st.text_area("🚜 Activité réalisée", height=80)
+      activite = st.text_area("🚜 Activité réalisée", height=80 , placeholder="Ex: 1ér couche , 2éme couche")
 
       essai = st.selectbox(
           "🧪 Essai / Contrôle réalisé",
@@ -867,7 +867,7 @@ if df is not None:
 
         zip_buffer.seek(0)
         st.download_button(
-            label="📦 Télécharger ZIP des DI (PDF)",
+            label="📦 Télécharger les demandes d'intervention (PDF)",
             data=zip_buffer,
             file_name="DI_Globales_PDF.zip",
             mime="application/zip",

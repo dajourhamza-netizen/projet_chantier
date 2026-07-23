@@ -332,7 +332,7 @@ with st.sidebar.expander("➕ **Créer / Ajouter un Nouveau Projet**", expanded=
                 else:
                     st.sidebar.error(msg)
         else:
-            st.sidebar.warning("⚠️ Veuillez entrer un اسم صحيح.")
+            st.sidebar.warning("⚠️ Veuillez entrer un nom valide.")
 
 # Chargement des données du projet actif
 df = None
@@ -421,7 +421,6 @@ if df is not None:
     with tab2:
         st.markdown("##### 🔍 **Registre des Travaux, Filtrage & Exportation**")
 
-        # 🎯 SECTION FILTRES DE RECHERCHE
         with st.expander("🎯 **Filtres de Recherche & Tri**", expanded=True):
             col_f1, col_f2, col_f3 = st.columns(3)
             
@@ -436,7 +435,6 @@ if df is not None:
             with col_f3:
                 recherche_texte = st.text_input("🔍 Recherche globale (Partie / PK / Activité) :", placeholder="Tapez un mot-clé...")
 
-        # Application des filtres
         df_filtre = df.copy()
 
         if filtre_nature != "Toutes":
@@ -472,7 +470,6 @@ if df is not None:
 
         with col_act1:
             if st.button("💾 Enregistrer les modifications dans Excel", type="secondary", use_container_width=True):
-                # Mettre à jour le DataFrame principal sans perdre les lignes non filtrées
                 df_sauvegarde = df.copy()
                 edited_clean = edited_df.drop(columns=["Imprimer"], errors="ignore")
                 df_sauvegarde.loc[edited_clean.index] = edited_clean
@@ -526,33 +523,79 @@ if df is not None:
                         )
 
     # -------------------------------------------------------------
-    # TAB 3 : DI MULTI-DATES
+    # TAB 3 : DI MULTI-DATES (EXPORT PDF)
     # -------------------------------------------------------------
     with tab3:
-        st.markdown("##### 📅 **Génération des Demandes d'Intervention (DI) Multi-Dates**")
+        st.markdown("##### 📅 **Génération des Demandes d'Intervention (DI) en PDF**")
         dates_disponibles = sorted([str(d).strip() for d in df["DATE"].unique() if str(d).strip() and str(d).lower() != "nan"])
         
         dates_choisies = st.multiselect("🗓️ Sélectionner une ou plusieurs dates :", options=dates_disponibles)
 
-        if dates_choisies and st.button("📑 Générer DI Globale (Multi-Dates)", type="primary"):
+        if dates_choisies and st.button("📑 Générer DI Globale en PDF", type="primary"):
             modele_di = os.path.join(DOSSIER_CHANTIER, "Demande d'intervention.docx")
             if not os.path.exists(modele_di):
                 modele_di = os.path.join(DOSSIER_CHANTIER, "Demande_intervention.docx")
 
             if os.path.exists(modele_di):
                 zip_buffer = io.BytesIO()
+                has_pdf = False
+                
                 with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
                     for d_single in dates_choisies:
                         df_sub = df[df["DATE"].astype(str).str.strip() == d_single]
                         if not df_sub.empty:
                             doc_rempli = generer_di_style_vba(modele_di, df_sub)
+                            
                             with tempfile.TemporaryDirectory() as temp_dir:
-                                p = os.path.join(temp_dir, "di.docx")
-                                doc_rempli.save(p)
-                                with open(p, "rb") as f:
-                                    zip_file.writestr(f"DI_Globale_{d_single.replace('/', '-')}.docx", f.read())
+                                docx_path = os.path.join(temp_dir, "temp_di.docx")
+                                pdf_path = os.path.join(temp_dir, "temp_di.pdf")
+                                
+                                doc_rempli.save(docx_path)
+                                pdf_bytes = None
+                                
+                                # 1. Essai avec docx2pdf (Windows / Word)
+                                try:
+                                    from docx2pdf import convert
+                                    convert(docx_path, pdf_path)
+                                    if os.path.exists(pdf_path):
+                                        with open(pdf_path, "rb") as pf:
+                                            pdf_bytes = pf.read()
+                                except Exception:
+                                    pass
+
+                                # 2. Essai avec LibreOffice (Linux / Server)
+                                if pdf_bytes is None:
+                                    try:
+                                        subprocess.run(
+                                            ["soffice", "--headless", "--convert-to", "pdf", "--outdir", temp_dir, docx_path],
+                                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True
+                                        )
+                                        if os.path.exists(pdf_path):
+                                            with open(pdf_path, "rb") as pf:
+                                                pdf_bytes = pf.read()
+                                    except Exception:
+                                        pass
+
+                                nom_fichier = f"DI_Globale_{d_single.replace('/', '-')}"
+                                
+                                if pdf_bytes:
+                                    zip_file.writestr(f"{nom_fichier}.pdf", pdf_bytes)
+                                    has_pdf = True
+                                else:
+                                    # Fallback au cas où Word/Libreoffice n'est pas installé
+                                    with open(docx_path, "rb") as f_docx:
+                                        zip_file.writestr(f"{nom_fichier}.docx", f_docx.read())
 
                 zip_buffer.seek(0)
-                st.download_button("📦 Télécharger ZIP des DI", data=zip_buffer, file_name="DI_Globales.zip", mime="application/zip")
+                st.download_button(
+                    label="📦 Télécharger ZIP des DI (PDF)",
+                    data=zip_buffer,
+                    file_name="DI_Globales_PDF.zip",
+                    mime="application/zip",
+                    use_container_width=True
+                )
+                
+                if not has_pdf:
+                    st.warning("⚠️ Microsoft Word ou LibreOffice n'a pas pu être exécuté sur la machine pour convertir en PDF. Le fichier a été généré en Word (.docx) comme secours.")
             else:
-                st.error("❌ Modèle `Demande d'intervention.docx` introuvable.")
+                st.error("❌ Modèle `Demande d'intervention.docx` introuvable dans le dossier du projet.")

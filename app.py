@@ -251,7 +251,8 @@ def generer_docx_et_pdf_bytes(chemin_modele, contexte):
                         pdf_bytes = f.read()
 
         if pdf_bytes is None:
-            raise RuntimeError("Impossible de convertir en PDF (MS Word ou LibreOffice requis).")
+            # Si aucune conversion PDF n'est possible, on renvoie docx_bytes à la place de pdf_bytes
+            pdf_bytes = docx_bytes
 
         return docx_bytes, pdf_bytes
 
@@ -650,20 +651,21 @@ if df is not None:
                         else:
                             st.error("❌ Aucun modèle Word correspondant aux natures de travaux n'a été trouvé.")
 
-                # OPTION 2 : FICHE DE SYNTHÈSE DI UNIQUE POUR LE JOUR (CORRIGÉE & ÉPROUVÉE)
+                # OPTION 2 : FICHE DE SYNTHÈSE DI UNIQUE POUR LE JOUR
                 with cdi2:
                     st.markdown("##### 📄 **Option 2 : DI Consolidation Journalière**")
                     st.caption("Génère une seule Demande d'Intervention globale regroupant la liste des travaux du jour.")
 
-                    modele_di_global = (
-                        trouver_modele_word("Demande d'intervention") or 
-                        trouver_modele_word("Demande_Intervention") or 
-                        trouver_modele_word("DI")
-                    )
+                    # Recherche directe et stricte du fichier
+                    modele_di_global = os.path.join(DOSSIER_CHANTIER, "Demande d'intervention.docx")
+                    if not os.path.exists(modele_di_global):
+                        modele_di_global = os.path.join(DOSSIER_CHANTIER, "Demande_intervention.docx")
+                        if not os.path.exists(modele_di_global):
+                            modele_di_global = trouver_modele_word("Demande d'intervention") or trouver_modele_word("DI")
 
                     if st.button(f"📑 Générer la DI globale du {date_choisie}", type="secondary", use_container_width=True):
-                        if not modele_di_global:
-                            st.warning("⚠️ Modèle introuvable. Assurez-vous que `Demande d'intervention.docx` est présent sur GitHub.")
+                        if not modele_di_global or not os.path.exists(modele_di_global):
+                            st.error("❌ Fichier `Demande d'intervention.docx` introuvable sur le répertoire GitHub.")
                         else:
                             try:
                                 with st.spinner("⏳ Génération de la DI globale journalière..."):

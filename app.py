@@ -416,32 +416,41 @@ if df is not None:
                 st.error(msg)
 
     # -------------------------------------------------------------
-    # TAB 2 : REGISTRE & FILTRES
+    # TAB 2 : REGISTRE & FILTRES COMPLETS
     # -------------------------------------------------------------
     with tab2:
         st.markdown("##### 🔍 **Registre des Travaux, Filtrage & Exportation**")
 
+        # 🎯 SECTION FILTRES DE RECHERCHE (AMÉLIORÉE)
         with st.expander("🎯 **Filtres de Recherche & Tri**", expanded=True):
-            col_f1, col_f2, col_f3 = st.columns(3)
+            col_f1, col_f2, col_f3, col_f4 = st.columns(4)
             
             with col_f1:
-                natures_dispo = ["Toutes"] + list(sorted([str(n) for n in df["TITRE DE LA NATURE DES TRAVAUX"].unique() if str(n).strip()]))
-                filtre_nature = st.selectbox("📌 Filtrer par Nature :", options=natures_dispo)
+                natures_dispo = ["Toutes"] + list(sorted([str(n) for n in df["TITRE DE LA NATURE DES TRAVAUX"].unique() if str(n).strip() and str(n).lower() != "nan"]))
+                filtre_nature = st.selectbox("📌 Nature :", options=natures_dispo)
             
             with col_f2:
                 dates_dispo = ["Toutes"] + sorted([str(d).strip() for d in df["DATE"].unique() if str(d).strip() and str(d).lower() != "nan"])
-                filtre_date = st.selectbox("🗓️ Filtrer par Date :", options=dates_dispo)
-                
-            with col_f3:
-                recherche_texte = st.text_input("🔍 Recherche globale (Partie / PK / Activité) :", placeholder="Tapez un mot-clé...")
+                filtre_date = st.selectbox("🗓️ Date :", options=dates_dispo)
 
+            with col_f3:
+                parties_dispo = ["Toutes"] + list(sorted([str(p).strip() for p in df[COL_PARTIE].unique() if str(p).strip() and str(p).lower() != "nan"]))
+                filtre_partie = st.selectbox("🧱 Partie d'ouvrage :", options=parties_dispo)
+                
+            with col_f4:
+                recherche_texte = st.text_input("🔍 Recherche globale :", placeholder="PK, Activité...")
+
+        # Application des filtres
         df_filtre = df.copy()
 
         if filtre_nature != "Toutes":
-            df_filtre = df_filtre[df_filtre["TITRE DE LA NATURE DES TRAVAUX"] == filtre_nature]
+            df_filtre = df_filtre[df_filtre["TITRE DE LA NATURE DES TRAVAUX"].astype(str).str.strip() == filtre_nature]
 
         if filtre_date != "Toutes":
             df_filtre = df_filtre[df_filtre["DATE"].astype(str).str.strip() == filtre_date]
+
+        if filtre_partie != "Toutes":
+            df_filtre = df_filtre[df_filtre[COL_PARTIE].astype(str).str.strip() == filtre_partie]
 
         if recherche_texte.strip():
             mots = recherche_texte.strip().lower()
@@ -582,7 +591,6 @@ if df is not None:
                                     zip_file.writestr(f"{nom_fichier}.pdf", pdf_bytes)
                                     has_pdf = True
                                 else:
-                                    # Fallback au cas où Word/Libreoffice n'est pas installé
                                     with open(docx_path, "rb") as f_docx:
                                         zip_file.writestr(f"{nom_fichier}.docx", f_docx.read())
 

@@ -523,7 +523,7 @@ with tab2:
 # ==========================================
     # Tab 3 : Demandes d'Intervention Multi-Dates
     # ==========================================
-    with tabs[2]:  # أو with tab3: على حسب المتغير المكتوب عندك فوق
+    with tab3:
         st.subheader("📅 Génération des Demandes d'Intervention (DI) en PDF")
 
         # 1. التقويم
@@ -534,10 +534,9 @@ with tab2:
             key="calendar_di_tab3"
         )
 
-        # 2. معالجة وتصفية البيانات
+        # 2. التصفية والبيانات
         if 'df' in locals() and df is not None and not df.empty:
             df_temp = df.copy()
-            
             if 'DATE' in df_temp.columns:
                 df_temp['DATE_DT'] = pd.to_datetime(df_temp['DATE'], dayfirst=True, errors='coerce').dt.date
                 df_filtered = pd.DataFrame()
@@ -551,23 +550,20 @@ with tab2:
                     mask = (df_temp['DATE_DT'] == single_date)
                     df_filtered = df_temp[mask]
 
-                # 3. عرض الجدول وزر التحميل
+                # 3. العرض والـ PDF
                 if not df_filtered.empty:
-                    st.success(f"✅ تم العثور على {len(df_filtered)} تسجيل.")
+                    st.success(f"✅ تم العثور على {len(df_filtered)} عمل/سجل.")
                     st.dataframe(df_filtered.drop(columns=['DATE_DT'], errors='ignore'), use_container_width=True)
 
                     if st.button("📄 Générer DI Globale en PDF", type="primary"):
-                        # 💡 ملاحظة: استبدل 'generate_pdf' بالسمية الحقيقية للدالة اللي عندك فـ Tab 2
-                        try:
-                            pdf_bytes = generate_pdf(df_filtered) 
-                            st.download_button(
-                                label="⬇️ Télécharger le Fichier PDF",
-                                data=pdf_bytes,
-                                file_name="Demandes_Intervention.pdf",
-                                mime="application/pdf"
-                            )
-                        except NameError:
-                            st.error("⚠️ الدالة ديال الـ PDF غير معروفة. تأكد من اسم الدالة المستعملة فـ Tab 2 وحط سميتها هنا!")
+                        # 💡 ملاحظة: استبدل 'generate_pdf' بـ سمية الدالة ديال الـ PDF اللي عندك فـ Tab 2
+                        pdf_bytes = generate_pdf(df_filtered) 
+                        st.download_button(
+                            label="⬇️ Télécharger le Fichier PDF",
+                            data=pdf_bytes,
+                            file_name="Demandes_Intervention.pdf",
+                            mime="application/pdf"
+                        )
                 elif len(date_range) > 0:
                     st.warning("⚠️ Aucune donnée trouvée pour cette période.")
                 else:

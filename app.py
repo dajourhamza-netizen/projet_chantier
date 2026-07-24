@@ -58,7 +58,6 @@ def get_gsheets_client():
     ]
     creds_dict = dict(st.secrets["gcp_service_account"])
     
-    # 🔧 إصلاح العودة للسطر فـ المفتاح السري تلقائياً
     if "private_key" in creds_dict:
         creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
         
@@ -85,7 +84,7 @@ def load_data_from_sheet(sheet_name):
         records = ws.get_all_records()
         df = pd.DataFrame(records)
         return df
-    except Exception as e:
+    except Exception:
         return pd.DataFrame(columns=COLUMNS_TEMPLATE)
 
 def save_data_to_sheet(df_to_save, sheet_name):
@@ -299,6 +298,91 @@ def generer_di_style_vba(chemin_modele, df_jour):
 
     return doc
 
+def generate_pdf(df_filtered):
+    """دالة إنشاء ملف DI وحفظه كـ PDF"""
+    modele_di = None
+    if os.path.exists(DOSSIER_CHANTIER):
+        for file in os.listdir(DOSSIER_CHANTIER):
+            if file.lower().endswith('.docx') and not file.startswith('~$'):
+                if 'di' in file.lower() or 'demande' in file.lower():
+                    modele_di = os.path.join(DOSSIER_CHANTIER, file)
+                    break
+        if not modele_di:
+            for file in os.listdir(DOSSIER_CHANTIER):
+                if file.lower().endswith('.docx') and not file.startswith('~$'):
+                    modele_di = os.path.join(DOSSIER_CHANTIER, file)
+                    break
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        docx_temp_path = os.path.join(temp_dir, "di_output.docx")
+        pdf_temp_path = os.path.join(temp_dir, "di_output.pdf")
+
+        if modele_di and os.path.exists(modele_di):
+            try:
+                doc = generer_di_style_vba(modele_di, df_filtered)
+                doc.save(docx_temp_path)
+            except Exception:
+                doc = Document()
+                doc.add_heading("Demande d'Intervention (DI)", 0)
+                table = doc.add_table(rows=1, cols=4)
+                hdr_cells = table.rows[0].cells
+                hdr_cells[0].text = 'Date'
+                hdr_cells[1].text = 'Nature / Activité'
+                hdr_cells[2].text = 'Localisation'
+                hdr_cells[3].text = 'Essai / Contrôle'
+                for _, row in df_filtered.iterrows():
+                    row_cells = table.add_row().cells
+                    row_cells[0].text = str(get_col_val(row, "DATE"))
+                    row_cells[1].text = f"{get_col_val(row, 'ACTIVITÉ RÉALISÉE')} - {get_col_val(row, 'TITRE DE LA NATURE DES TRAVAUX')}"
+                    row_cells[2].text = f"{get_col_val(row, COL_PARTIE)} / {get_col_val(row, 'SITUATION')}"
+                    row_cells[3].text = str(get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE"))
+                doc.save(docx_temp_path)
+        else:
+            doc = Document()
+            doc.add_heading("Demande d'Intervention (DI)", 0)
+            table = doc.add_table(rows=1, cols=4)
+            hdr_cells = table.rows[0].cells
+            hdr_cells[0].text = 'Date'
+            hdr_cells[1].text = 'Nature / Activité'
+            hdr_cells[2].text = 'Localisation'
+            hdr_cells[3].text = 'Essai / Contrôle'
+            for _, row in df_filtered.iterrows():
+                row_cells = table.add_row().cells
+                row_cells[0].text = str(get_col_val(row, "DATE"))
+                row_cells[1].text = f"{get_col_val(row, 'ACTIVITÉ RÉALISÉE')} - {get_col_val(row, 'TITRE DE LA NATURE DES TRAVAUX')}"
+                row_cells[2].text = f"{get_col_val(row, COL_PARTIE)} / {get_col_val(row, 'SITUATION')}"
+                row_cells[3].text = str(get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE"))
+            doc.save(docx_temp_path)
+
+        with open(docx_temp_path, "rb") as f:
+            docx_bytes = f.read()
+
+        pdf_bytes = None
+        try:
+            cmd = f"soffice --headless --convert-to pdf {docx_temp_path} --outdir {temp_dir}"
+            subprocess.run(cmd, shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            out_pdf = os.path.join(temp_dir, "di_output.pdf")
+            if os.path.exists(out_pdf):
+                with open(out_pdf, "rb") as f:
+                    pdf_bytes = f.read()
+        except Exception:
+            pass
+
+        if pdf_bytes is None:
+            try:
+                from docx2pdf import convert
+                convert(docx_temp_path, pdf_temp_path)
+                if os.path.exists(pdf_temp_path):
+                    with open(pdf_temp_path, "rb") as f:
+                        pdf_bytes = f.read()
+            except Exception:
+                pass
+
+        if pdf_bytes is None:
+            pdf_bytes = docx_bytes
+
+        return pdf_bytes
+
 # ==========================================
 # 3. BARRE LATÉRALE (SIDEBAR) & GESTION PROJETS
 # ==========================================
@@ -309,7 +393,6 @@ chantier_actif = st.sidebar.selectbox("📌 **Projet Actif :**", options=chantie
 
 st.sidebar.markdown("---")
 
-# ➕ Section Création d'un Nouveau Projet
 with st.sidebar.expander("➕ **Créer / Ajouter un Nouveau Projet**", expanded=False):
     nouveau_projet_nom = st.text_input("Nom du nouveau projet :", key="new_proj_input")
     if st.button("✨ Créer le Projet", type="primary", key="btn_create_proj", use_container_width=True):
@@ -328,7 +411,6 @@ with st.sidebar.expander("➕ **Créer / Ajouter un Nouveau Projet**", expanded=
         else:
             st.sidebar.warning("⚠️ Veuillez entrer un nom valide.")
 
-# Chargement des données du projet actif
 df = load_data_from_sheet(chantier_actif)
 if "DATE" in df.columns:
     df["DATE"] = pd.to_datetime(df["DATE"], dayfirst=True, errors='coerce')
@@ -520,51 +602,47 @@ with tab2:
                         use_container_width=True
                     )
 
-# ==========================================
-    # Tab 3 : Demandes d'Intervention Multi-Dates
-    # ==========================================
-    with tab3:
-        st.subheader("📅 Génération des Demandes d'Intervention (DI) en PDF")
+# -------------------------------------------------------------
+# TAB 3 : DEMANDES D'INTERVENTION MULTI-DATES
+# -------------------------------------------------------------
+with tab3:
+    st.subheader("📅 Génération des Demandes d'Intervention (DI) en PDF")
 
-        # 1. التقويم
-        date_range = st.date_input(
-            "📅 Sélectionner une date ou une période :",
-            value=(),
-            format="DD/MM/YYYY",
-            key="calendar_di_tab3"
-        )
+    date_range = st.date_input(
+        "📅 Sélectionner une date ou une période :",
+        value=(),
+        format="DD/MM/YYYY",
+        key="calendar_di_tab3"
+    )
 
-        # 2. التصفية والبيانات
-        if 'df' in locals() and df is not None and not df.empty:
-            df_temp = df.copy()
-            if 'DATE' in df_temp.columns:
-                df_temp['DATE_DT'] = pd.to_datetime(df_temp['DATE'], dayfirst=True, errors='coerce').dt.date
-                df_filtered = pd.DataFrame()
+    if 'df' in locals() and df is not None and not df.empty:
+        df_temp = df.copy()
+        if 'DATE' in df_temp.columns:
+            df_temp['DATE_DT'] = pd.to_datetime(df_temp['DATE'], dayfirst=True, errors='coerce').dt.date
+            df_filtered = pd.DataFrame()
 
-                if len(date_range) == 2:
-                    start_date, end_date = date_range
-                    mask = (df_temp['DATE_DT'] >= start_date) & (df_temp['DATE_DT'] <= end_date)
-                    df_filtered = df_temp[mask]
-                elif len(date_range) == 1:
-                    single_date = date_range[0]
-                    mask = (df_temp['DATE_DT'] == single_date)
-                    df_filtered = df_temp[mask]
+            if len(date_range) == 2:
+                start_date, end_date = date_range
+                mask = (df_temp['DATE_DT'] >= start_date) & (df_temp['DATE_DT'] <= end_date)
+                df_filtered = df_temp[mask]
+            elif len(date_range) == 1:
+                single_date = date_range[0]
+                mask = (df_temp['DATE_DT'] == single_date)
+                df_filtered = df_temp[mask]
 
-                # 3. العرض والـ PDF
-                if not df_filtered.empty:
-                    st.success(f"✅ تم العثور على {len(df_filtered)} عمل/سجل.")
-                    st.dataframe(df_filtered.drop(columns=['DATE_DT'], errors='ignore'), use_container_width=True)
+            if not df_filtered.empty:
+                st.success(f"✅ تم العثور على {len(df_filtered)} عمل/سجل.")
+                st.dataframe(df_filtered.drop(columns=['DATE_DT'], errors='ignore'), use_container_width=True)
 
-                    if st.button("📄 Générer DI Globale en PDF", type="primary"):
-                        # 💡 ملاحظة: استبدل 'generate_pdf' بـ سمية الدالة ديال الـ PDF اللي عندك فـ Tab 2
-                        pdf_bytes = generate_pdf(df_filtered) 
-                        st.download_button(
-                            label="⬇️ Télécharger le Fichier PDF",
-                            data=pdf_bytes,
-                            file_name="Demandes_Intervention.pdf",
-                            mime="application/pdf"
-                        )
-                elif len(date_range) > 0:
-                    st.warning("⚠️ Aucune donnée trouvée pour cette période.")
-                else:
-                    st.info("💡 Veuillez choisir une date ou une période dans le calendrier ci-dessus.")
+                if st.button("📄 Générer DI Globale en PDF", type="primary"):
+                    pdf_bytes = generate_pdf(df_filtered) 
+                    st.download_button(
+                        label="⬇️ Télécharger le Fichier PDF",
+                        data=pdf_bytes,
+                        file_name="Demandes_Intervention.pdf",
+                        mime="application/pdf"
+                    )
+            elif len(date_range) > 0:
+                st.warning("⚠️ Aucune donnée trouvée pour cette période.")
+            else:
+                st.info("💡 Veuillez choisir une date ou une période dans le calendrier ci-dessus.")

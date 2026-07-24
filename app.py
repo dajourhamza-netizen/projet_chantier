@@ -525,46 +525,58 @@ with tab2:
     # ==========================================
     st.subheader("📅 Génération des Demandes d'Intervention (DI) en PDF")
 
-    # 1. Sélection par calendrier
+    # 1. التقويم كيظهر ديماً فـ الصفحة (خارج أي شرط)
     date_range = st.date_input(
         "📅 Sélectionner une date ou une période :",
         value=(),
-        format="DD/MM/YYYY"
+        format="DD/MM/YYYY",
+        key="calendar_di_multi"
     )
 
-    # 2. Preparation des données
-    dates_choisies = []
-    df_temp = df.copy()
-
-    if not df_temp.empty and 'DATE' in df_temp.columns:
-        df_temp['DATE_DT'] = pd.to_datetime(df_temp['DATE'], dayfirst=True, errors='coerce').dt.date
-
-        if len(date_range) == 2:
-            start_date, end_date = date_range
-            mask = (df_temp['DATE_DT'] >= start_date) & (df_temp['DATE_DT'] <= end_date)
-            df_filtered = df_temp[mask]
-            dates_choisies = list(df_filtered['DATE'].dropna().unique())
-
-        elif len(date_range) == 1:
-            single_date = date_range[0]
-            mask = (df_temp['DATE_DT'] == single_date)
-            df_filtered = df_temp[mask]
-            dates_choisies = list(df_filtered['DATE'].dropna().unique())
-
-    # 3. Affichage et Génération PDF
-    if dates_choisies:
-        st.success(f"✅ {len(dates_choisies)} date(s) trouvée(s) : {', '.join(map(str, dates_choisies))}")
+    # 2. معالجة البيانات فقط إلا كانت متوفرة
+    if 'df' in locals() and df is not None and not df.empty:
+        df_temp = df.copy()
         
-        if st.button("📄 Générer DI Globale en PDF", type="primary"):
-            # Appel de la fonction de génération PDF
-            pdf_bytes = generate_multi_di_pdf(df_filtered)
-            st.download_button(
-                label="⬇️ Télécharger le Fichier PDF",
-                data=pdf_bytes,
-                file_name="Demandes_Intervention.pdf",
-                mime="application/pdf"
-            )
-    elif len(date_range) > 0:
-        st.warning("⚠️ Aucune donnée trouvée pour cette période.")
+        if 'DATE' in df_temp.columns:
+            df_temp['DATE_DT'] = pd.to_datetime(df_temp['DATE'], dayfirst=True, errors='coerce').dt.date
+
+            df_filtered = pd.DataFrame()
+            dates_choisies = []
+
+            # فلترة حسب خيار التقويم
+            if len(date_range) == 2:
+                start_date, end_date = date_range
+                mask = (df_temp['DATE_DT'] >= start_date) & (df_temp['DATE_DT'] <= end_date)
+                df_filtered = df_temp[mask]
+                dates_choisies = list(df_filtered['DATE'].dropna().unique())
+
+            elif len(date_range) == 1:
+                single_date = date_range[0]
+                mask = (df_temp['DATE_DT'] == single_date)
+                df_filtered = df_temp[mask]
+                dates_choisies = list(df_filtered['DATE'].dropna().unique())
+
+            # 3. عرض النتائج والزر
+            if dates_choisies:
+                st.success(f"✅ {len(df_filtered)} enregistrement(s) trouvé(s) pour {len(dates_choisies)} date(s).")
+                
+                # جدول المعاينة
+                st.dataframe(df_filtered.drop(columns=['DATE_DT'], errors='ignore'), use_container_width=True)
+                
+                # زر إنجاز الـ PDF
+                if st.button("📄 Générer DI Globale en PDF", type="primary"):
+                    pdf_bytes = generate_multi_di_pdf(df_filtered)
+                    st.download_button(
+                        label="⬇️ Télécharger le Fichier PDF",
+                        data=pdf_bytes,
+                        file_name="Demandes_Intervention.pdf",
+                        mime="application/pdf"
+                    )
+            elif len(date_range) > 0:
+                st.warning("⚠️ Aucune donnée trouvée pour cette période فـ Google Sheet.")
+            else:
+                st.info("💡 Veuillez choisir une date ou une période dans le calendrier ci-dessus.")
+        else:
+            st.error("⚠️ Le colonne 'DATE' n'existe pas dans la feuille Google Sheets.")
     else:
-        st.info("💡 Veuillez choisir une date ou une période dans le calendrier ci-dessus.")
+        st.warning("⏳ Chargement des données Google Sheets en cours...")

@@ -299,7 +299,7 @@ def generer_di_style_vba(chemin_modele, df_jour):
     return doc
 
 def generer_di_une_date(df_jour):
-    """إنشاء DI خاصة بتاريخ واحد فقط"""
+    """Génère une Demande d'Intervention pour une seule date"""
     modele_di = None
     if os.path.exists(DOSSIER_CHANTIER):
         for file in os.listdir(DOSSIER_CHANTIER):
@@ -384,7 +384,7 @@ def generer_di_une_date(df_jour):
         return docx_bytes, pdf_bytes
 
 def generer_pack_di_zip(df_filtered):
-    """تجميع كل تاريخ فـ DI مستقلة وضغطهم فـ ZIP"""
+    """Regroupe chaque date dans une DI distincte et les compresse en ZIP"""
     zip_buffer = io.BytesIO()
     dates_uniques = df_filtered["DATE"].unique()
     
@@ -654,13 +654,13 @@ with tab3:
 
             if not df_filtered.empty:
                 dates_detectees = df_filtered['DATE'].unique()
-                st.success(f"✅ تم العثور على {len(df_filtered)} عمل مقسمة على {len(dates_detectees)} يوم/أيام.")
+                st.success(f"✅ {len(df_filtered)} travail(aux) trouvé(s) réparti(s) sur {len(dates_detectees)} jour(s).")
                 
                 st.dataframe(df_filtered.drop(columns=['DATE_DT'], errors='ignore'), use_container_width=True)
 
                 st.markdown("---")
                 
-                # إذا اختار يوم واحد فقط -> إمكانية تحميل PDF مباشره
+                # Si une seule date est sélectionnée
                 if len(dates_detectees) == 1:
                     date_nom = str(dates_detectees[0]).replace('/', '-')
                     if st.button(f"📄 Générer la DI du {dates_detectees[0]} (PDF/Word)", type="primary"):
@@ -672,7 +672,7 @@ with tab3:
                             mime="application/pdf",
                             use_container_width=True
                         )
-                # إذا اختار فترة فيها عدة أيام -> يعطيه ZIP فيه ملف خاص ب كل تاريخ
+                # Si plusieurs dates sont sélectionnées
                 else:
                     if st.button("📦 Générer Pack DI (1 Fichier PDF/Word par Date)", type="primary"):
                         zip_data, count_dates = generer_pack_di_zip(df_filtered)

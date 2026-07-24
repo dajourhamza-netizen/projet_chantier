@@ -527,28 +527,51 @@ with tab3:
     st.markdown("##### 📅 **Génération des Demandes d'Intervention (DI) en PDF**")
     dates_disponibles = sorted([str(d).strip() for d in df["DATE"].unique() if str(d).strip() and str(d).lower() != "nan"]) if "DATE" in df.columns else []
     
-  # 📅 التحديد بواسطة التقويم (Calendrier)
+# 📅 التحديد بواسطة التقويم (Calendrier)
 date_range = st.date_input(
     "📅 Sélectionner une date ou une période :",
     value=(),
     format="DD/MM/YYYY"
 )
 
-# 🔄 تحويل الاختيار إلى قائمة التواريخ (dates_choisies) باش يخدم زر الـ PDF
-dates_choisies = []
+df_temp = df.copy()
+df_temp['DATE_DT'] = pd.to_datetime(df_temp['DATE'], dayfirst=True, errors='coerce').dt.date
+
+df_filtered_dates = pd.DataFrame()
 
 if len(date_range) == 2:
     start_date, end_date = date_range
-    # تحويل التواريخ لاستخراج التواريخ اللي بين بداية ونهاية الفترة
-    df_temp = df.copy()
-    df_temp['DATE_DT'] = pd.to_datetime(df_temp['DATE'], dayfirst=True, errors='coerce').dt.date
     mask = (df_temp['DATE_DT'] >= start_date) & (df_temp['DATE_DT'] <= end_date)
-    dates_choisies = list(df_temp.loc[mask, 'DATE'].unique())
-
+    df_filtered_dates = df_temp[mask]
 elif len(date_range) == 1:
-    # تاريخ واحد محدد فـ التقويم
-    single_date_str = date_range[0].strftime("%d/%m/%Y")
-    dates_choisies = [single_date_str]
+    single_date = date_range[0]
+    mask = (df_temp['DATE_DT'] == single_date)
+    df_filtered_dates = df_temp[mask]
+
+# 📋 عرض النتائج وزر التحميل
+if not df_filtered_dates.empty:
+    st.success(f"✅ تم العثور على {len(df_filtered_dates)} عمل/سجل فـ هاد الفترة.")
+    
+    # عرض جدول بالأعمال المحددة
+    st.dataframe(df_filtered_dates.drop(columns=['DATE_DT'], errors='ignore'), use_container_width=True)
+    
+    # 📄 زر تحميل ملف الـ PDF
+    dates_choisies = list(df_filtered_dates['DATE'].unique())
+    
+    if st.button("📄 Générer & Télécharger les Demandes d'Intervention (PDF)", type="primary"):
+        # الكود الخاص بإنشاء وتحميل الـ PDF
+        pdf_data = generate_multi_di_pdf(df_filtered_dates) # أو اسم الدالة ديالك
+        st.download_button(
+            label="⬇️ Télécharger le fichier PDF",
+            data=pdf_data,
+            file_name=f"DI_Chantier_{date_range[0]}.pdf",
+            mime="application/pdf"
+        )
+else:
+    if len(date_range) > 0:
+        st.warning("⚠️ Aucune donnée trouvée pour la date sélectionnée (جرب تختار تاريخ فـ شهر 11/2024 فـ التقويم).")
+    else:
+        st.info("💡 Veuillez choisir une date ou une période dans le calendrier ci-dessus.")
 else:
     df_filtered = df.copy()
     if dates_choisies and st.button("📑 Générer DI Globale en PDF", type="primary"):

@@ -520,122 +520,51 @@ with tab2:
                         use_container_width=True
                     )
 
-# -------------------------------------------------------------
-# TAB 3 : DI MULTI-DATES
-# -------------------------------------------------------------
-with tab3:
-    st.markdown("##### 📅 **Génération des Demandes d'Intervention (DI) en PDF**")
-    dates_disponibles = sorted([str(d).strip() for d in df["DATE"].unique() if str(d).strip() and str(d).lower() != "nan"]) if "DATE" in df.columns else []
-    
-# 📅 التحديد بواسطة التقويم (Calendrier)
-date_range = st.date_input(
-    "📅 Sélectionner une date ou une période :",
-    value=(),
-    format="DD/MM/YYYY"
-)
+# ==========================================
+    # Tab 3 : Demandes d'Intervention Multi-Dates
+    # ==========================================
+    st.subheader("📅 Génération des Demandes d'Intervention (DI) en PDF")
 
-df_temp = df.copy()
-df_temp['DATE_DT'] = pd.to_datetime(df_temp['DATE'], dayfirst=True, errors='coerce').dt.date
+    # 1. Sélection par calendrier
+    date_range = st.date_input(
+        "📅 Sélectionner une date ou une période :",
+        value=(),
+        format="DD/MM/YYYY"
+    )
 
-df_filtered_dates = pd.DataFrame()
+    # 2. Preparation des données
+    dates_choisies = []
+    df_temp = df.copy()
 
-if len(date_range) == 2:
-    start_date, end_date = date_range
-    mask = (df_temp['DATE_DT'] >= start_date) & (df_temp['DATE_DT'] <= end_date)
-    df_filtered_dates = df_temp[mask]
-elif len(date_range) == 1:
-    single_date = date_range[0]
-    mask = (df_temp['DATE_DT'] == single_date)
-    df_filtered_dates = df_temp[mask]
+    if not df_temp.empty and 'DATE' in df_temp.columns:
+        df_temp['DATE_DT'] = pd.to_datetime(df_temp['DATE'], dayfirst=True, errors='coerce').dt.date
 
-# 📋 عرض النتائج وزر التحميل
-if not df_filtered_dates.empty:
-    st.success(f"✅ تم العثور على {len(df_filtered_dates)} عمل/سجل فـ هاد الفترة.")
-    
-    # عرض جدول بالأعمال المحددة
-    st.dataframe(df_filtered_dates.drop(columns=['DATE_DT'], errors='ignore'), use_container_width=True)
-    
-    # 📄 زر تحميل ملف الـ PDF
-    dates_choisies = list(df_filtered_dates['DATE'].unique())
-    
-    if st.button("📄 Générer & Télécharger les Demandes d'Intervention (PDF)", type="primary"):
-        # الكود الخاص بإنشاء وتحميل الـ PDF
-        pdf_data = generate_multi_di_pdf(df_filtered_dates) # أو اسم الدالة ديالك
-        st.download_button(
-            label="⬇️ Télécharger le fichier PDF",
-            data=pdf_data,
-            file_name=f"DI_Chantier_{date_range[0]}.pdf",
-            mime="application/pdf"
-        )
-else:
-    if len(date_range) > 0:
-        st.warning("⚠️ Aucune donnée trouvée pour la date sélectionnée (جرب تختار تاريخ فـ شهر 11/2024 فـ التقويم).")
+        if len(date_range) == 2:
+            start_date, end_date = date_range
+            mask = (df_temp['DATE_DT'] >= start_date) & (df_temp['DATE_DT'] <= end_date)
+            df_filtered = df_temp[mask]
+            dates_choisies = list(df_filtered['DATE'].dropna().unique())
+
+        elif len(date_range) == 1:
+            single_date = date_range[0]
+            mask = (df_temp['DATE_DT'] == single_date)
+            df_filtered = df_temp[mask]
+            dates_choisies = list(df_filtered['DATE'].dropna().unique())
+
+    # 3. Affichage et Génération PDF
+    if dates_choisies:
+        st.success(f"✅ {len(dates_choisies)} date(s) trouvée(s) : {', '.join(map(str, dates_choisies))}")
+        
+        if st.button("📄 Générer DI Globale en PDF", type="primary"):
+            # Appel de la fonction de génération PDF
+            pdf_bytes = generate_multi_di_pdf(df_filtered)
+            st.download_button(
+                label="⬇️ Télécharger le Fichier PDF",
+                data=pdf_bytes,
+                file_name="Demandes_Intervention.pdf",
+                mime="application/pdf"
+            )
+    elif len(date_range) > 0:
+        st.warning("⚠️ Aucune donnée trouvée pour cette période.")
     else:
         st.info("💡 Veuillez choisir une date ou une période dans le calendrier ci-dessus.")
-else:
-    df_filtered = df.copy()
-    if dates_choisies and st.button("📑 Générer DI Globale en PDF", type="primary"):
-        modele_di = os.path.join(DOSSIER_CHANTIER, "Demande d'intervention.docx")
-        if not os.path.exists(modele_di):
-            modele_di = os.path.join(DOSSIER_CHANTIER, "Demande_intervention.docx")
-
-        if os.path.exists(modele_di):
-            zip_buffer = io.BytesIO()
-            has_pdf = False
-            
-            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                for d_single in dates_choisies:
-                    df_sub = df[df["DATE"].astype(str).str.strip() == d_single]
-                    if not df_sub.empty:
-                        doc_rempli = generer_di_style_vba(modele_di, df_sub)
-                        
-                        with tempfile.TemporaryDirectory() as temp_dir:
-                            docx_path = os.path.join(temp_dir, "temp_di.docx")
-                            pdf_path = os.path.join(temp_dir, "temp_di.pdf")
-                            
-                            doc_rempli.save(docx_path)
-                            pdf_bytes = None
-                            
-                            try:
-                                from docx2pdf import convert
-                                convert(docx_path, pdf_path)
-                                if os.path.exists(pdf_path):
-                                    with open(pdf_path, "rb") as pf:
-                                        pdf_bytes = pf.read()
-                            except Exception:
-                                pass
-
-                            if pdf_bytes is None:
-                                try:
-                                    subprocess.run(
-                                        ["soffice", "--headless", "--convert-to", "pdf", "--outdir", temp_dir, docx_path],
-                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True
-                                    )
-                                    if os.path.exists(pdf_path):
-                                        with open(pdf_path, "rb") as pf:
-                                            pdf_bytes = pf.read()
-                                except Exception:
-                                    pass
-
-                            nom_fichier = f"DI_Globale_{d_single.replace('/', '-')}"
-                            
-                            if pdf_bytes:
-                                zip_file.writestr(f"{nom_fichier}.pdf", pdf_bytes)
-                                has_pdf = True
-                            else:
-                                with open(docx_path, "rb") as f_docx:
-                                    zip_file.writestr(f"{nom_fichier}.docx", f_docx.read())
-
-            zip_buffer.seek(0)
-            st.download_button(
-                label="📦 Télécharger ZIP des DI (PDF)",
-                data=zip_buffer,
-                file_name="DI_Globales_PDF.zip",
-                mime="application/zip",
-                use_container_width=True
-            )
-            
-            if not has_pdf:
-                st.warning("⚠️ Microsoft Word ou LibreOffice n'a pas pu être exécuté pour la conversion PDF. Le fichier Word (.docx) a été généré en secours.")
-        else:
-            st.error("❌ Modèle `Demande d'intervention.docx` introuvable.")

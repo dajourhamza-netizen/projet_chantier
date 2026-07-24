@@ -527,23 +527,28 @@ with tab3:
     st.markdown("##### 📅 **Génération des Demandes d'Intervention (DI) en PDF**")
     dates_disponibles = sorted([str(d).strip() for d in df["DATE"].unique() if str(d).strip() and str(d).lower() != "nan"]) if "DATE" in df.columns else []
     
-    # 🟢 الكود الجديد (تقويم واختيار فترة):
+  # 📅 التحديد بواسطة التقويم (Calendrier)
 date_range = st.date_input(
     "📅 Sélectionner une date ou une période :",
     value=(),
     format="DD/MM/YYYY"
 )
 
-# تصفية البيانات حسب التاريخ المحدد فـ التقويم
+# 🔄 تحويل الاختيار إلى قائمة التواريخ (dates_choisies) باش يخدم زر الـ PDF
+dates_choisies = []
+
 if len(date_range) == 2:
     start_date, end_date = date_range
-    # تحويل العمود لـ datetime فـ حالة ما كانش متحول
-    df['DATE_DT'] = pd.to_datetime(df['DATE'], dayfirst=True, errors='coerce').dt.date
-    df_filtered = df[(df['DATE_DT'] >= start_date) & (df['DATE_DT'] <= end_date)]
+    # تحويل التواريخ لاستخراج التواريخ اللي بين بداية ونهاية الفترة
+    df_temp = df.copy()
+    df_temp['DATE_DT'] = pd.to_datetime(df_temp['DATE'], dayfirst=True, errors='coerce').dt.date
+    mask = (df_temp['DATE_DT'] >= start_date) & (df_temp['DATE_DT'] <= end_date)
+    dates_choisies = list(df_temp.loc[mask, 'DATE'].unique())
+
 elif len(date_range) == 1:
-    single_date = date_range[0]
-    df['DATE_DT'] = pd.to_datetime(df['DATE'], dayfirst=True, errors='coerce').dt.date
-    df_filtered = df[df['DATE_DT'] == single_date]
+    # تاريخ واحد محدد فـ التقويم
+    single_date_str = date_range[0].strftime("%d/%m/%Y")
+    dates_choisies = [single_date_str]
 else:
     df_filtered = df.copy()
     if dates_choisies and st.button("📑 Générer DI Globale en PDF", type="primary"):

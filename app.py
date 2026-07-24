@@ -298,8 +298,8 @@ def generer_di_style_vba(chemin_modele, df_jour):
 
     return doc
 
-def generate_pdf(df_filtered):
-    """دالة إنشاء ملف DI وحفظه كـ PDF"""
+def generer_di_une_date(df_jour):
+    """إنشاء DI خاصة بتاريخ واحد فقط"""
     modele_di = None
     if os.path.exists(DOSSIER_CHANTIER):
         for file in os.listdir(DOSSIER_CHANTIER):
@@ -314,12 +314,12 @@ def generate_pdf(df_filtered):
                     break
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        docx_temp_path = os.path.join(temp_dir, "di_output.docx")
-        pdf_temp_path = os.path.join(temp_dir, "di_output.pdf")
+        docx_temp_path = os.path.join(temp_dir, "di_single.docx")
+        pdf_temp_path = os.path.join(temp_dir, "di_single.pdf")
 
         if modele_di and os.path.exists(modele_di):
             try:
-                doc = generer_di_style_vba(modele_di, df_filtered)
+                doc = generer_di_style_vba(modele_di, df_jour)
                 doc.save(docx_temp_path)
             except Exception:
                 doc = Document()
@@ -330,7 +330,7 @@ def generate_pdf(df_filtered):
                 hdr_cells[1].text = 'Nature / Activité'
                 hdr_cells[2].text = 'Localisation'
                 hdr_cells[3].text = 'Essai / Contrôle'
-                for _, row in df_filtered.iterrows():
+                for _, row in df_jour.iterrows():
                     row_cells = table.add_row().cells
                     row_cells[0].text = str(get_col_val(row, "DATE"))
                     row_cells[1].text = f"{get_col_val(row, 'ACTIVITÉ RÉALISÉE')} - {get_col_val(row, 'TITRE DE LA NATURE DES TRAVAUX')}"
@@ -346,7 +346,7 @@ def generate_pdf(df_filtered):
             hdr_cells[1].text = 'Nature / Activité'
             hdr_cells[2].text = 'Localisation'
             hdr_cells[3].text = 'Essai / Contrôle'
-            for _, row in df_filtered.iterrows():
+            for _, row in df_jour.iterrows():
                 row_cells = table.add_row().cells
                 row_cells[0].text = str(get_col_val(row, "DATE"))
                 row_cells[1].text = f"{get_col_val(row, 'ACTIVITÉ RÉALISÉE')} - {get_col_val(row, 'TITRE DE LA NATURE DES TRAVAUX')}"
@@ -359,9 +359,9 @@ def generate_pdf(df_filtered):
 
         pdf_bytes = None
         try:
-            cmd = f"soffice --headless --convert-to pdf {docx_temp_path} --outdir {temp_dir}"
+            cmd = f"soffice --headless --convert-to pdf \"{docx_temp_path}\" --outdir \"{temp_dir}\""
             subprocess.run(cmd, shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            out_pdf = os.path.join(temp_dir, "di_output.pdf")
+            out_pdf = os.path.join(temp_dir, "di_single.pdf")
             if os.path.exists(out_pdf):
                 with open(out_pdf, "rb") as f:
                     pdf_bytes = f.read()
@@ -381,7 +381,29 @@ def generate_pdf(df_filtered):
         if pdf_bytes is None:
             pdf_bytes = docx_bytes
 
-        return pdf_bytes
+        return docx_bytes, pdf_bytes
+
+def generer_pack_di_zip(df_filtered):
+    """تجميع كل تاريخ فـ DI مستقلة وضغطهم فـ ZIP"""
+    zip_buffer = io.BytesIO()
+    dates_uniques = df_filtered["DATE"].unique()
+    
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for date_val in dates_uniques:
+            if not date_val or str(date_val).strip() == "" or str(date_val).lower() == "nan":
+                continue
+            
+            df_jour = df_filtered[df_filtered["DATE"] == date_val]
+            docx_b, pdf_b = generer_di_une_date(df_jour)
+            
+            date_clean = str(date_val).replace('/', '-').replace('\\', '-')
+            nom_fichier_base = f"DI_{date_clean}"
+            
+            zip_file.writestr(f"{nom_fichier_base}.docx", docx_b)
+            zip_file.writestr(f"{nom_fichier_base}.pdf", pdf_b)
+            
+    zip_buffer.seek(0)
+    return zip_buffer, len(dates_uniques)
 
 # ==========================================
 # 3. BARRE LATÉRALE (SIDEBAR) & GESTION PROJETS
@@ -433,7 +455,7 @@ st.markdown(f"""
 tab1, tab2, tab3 = st.tabs([
     "📝 **Nouvelle Saisie Chantier**", 
     "📊 **Registre & Génération Individuelle**", 
-    "📅 **Demandes d'Intervention (DI) Multi-Dates**"
+    "📅 **Demandes d'Intervention (DI) Séparées par Date**"
 ])
 
 # -------------------------------------------------------------
@@ -603,10 +625,10 @@ with tab2:
                     )
 
 # -------------------------------------------------------------
-# TAB 3 : DEMANDES D'INTERVENTION MULTI-DATES
+# TAB 3 : DEMANDES D'INTERVENTION MULTI-DATES (SÉPARÉES)
 # -------------------------------------------------------------
 with tab3:
-    st.subheader("📅 Génération des Demandes d'Intervention (DI) en PDF")
+    st.subheader("📅 Génération des Demandes d'Intervention (DI) - 1 DI par Date")
 
     date_range = st.date_input(
         "📅 Sélectionner une date ou une période :",
@@ -631,17 +653,36 @@ with tab3:
                 df_filtered = df_temp[mask]
 
             if not df_filtered.empty:
-                st.success(f"✅ تم العثور على {len(df_filtered)} عمل/سجل.")
+                dates_detectees = df_filtered['DATE'].unique()
+                st.success(f"✅ تم العثور على {len(df_filtered)} عمل مقسمة على {len(dates_detectees)} يوم/أيام.")
+                
                 st.dataframe(df_filtered.drop(columns=['DATE_DT'], errors='ignore'), use_container_width=True)
 
-                if st.button("📄 Générer DI Globale en PDF", type="primary"):
-                    pdf_bytes = generate_pdf(df_filtered) 
-                    st.download_button(
-                        label="⬇️ Télécharger le Fichier PDF",
-                        data=pdf_bytes,
-                        file_name="Demandes_Intervention.pdf",
-                        mime="application/pdf"
-                    )
+                st.markdown("---")
+                
+                # إذا اختار يوم واحد فقط -> إمكانية تحميل PDF مباشره
+                if len(dates_detectees) == 1:
+                    date_nom = str(dates_detectees[0]).replace('/', '-')
+                    if st.button(f"📄 Générer la DI du {dates_detectees[0]} (PDF/Word)", type="primary"):
+                        docx_b, pdf_b = generer_di_une_date(df_filtered)
+                        st.download_button(
+                            label=f"⬇️ Télécharger DI ({date_nom}.pdf)",
+                            data=pdf_b,
+                            file_name=f"DI_{date_nom}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True
+                        )
+                # إذا اختار فترة فيها عدة أيام -> يعطيه ZIP فيه ملف خاص ب كل تاريخ
+                else:
+                    if st.button("📦 Générer Pack DI (1 Fichier PDF/Word par Date)", type="primary"):
+                        zip_data, count_dates = generer_pack_di_zip(df_filtered)
+                        st.download_button(
+                            label=f"⬇️ Télécharger Le Pack ZIP ({count_dates} Fichiers DI)",
+                            data=zip_data,
+                            file_name="Pack_Demandes_Intervention_Par_Date.zip",
+                            mime="application/zip",
+                            use_container_width=True
+                        )
             elif len(date_range) > 0:
                 st.warning("⚠️ Aucune donnée trouvée pour cette période.")
             else:

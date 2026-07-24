@@ -523,60 +523,52 @@ with tab2:
 # ==========================================
     # Tab 3 : Demandes d'Intervention Multi-Dates
     # ==========================================
-    st.subheader("📅 Génération des Demandes d'Intervention (DI) en PDF")
+    with tabs[2]:  # أو with tab3: على حسب المتغير المكتوب عندك فوق
+        st.subheader("📅 Génération des Demandes d'Intervention (DI) en PDF")
 
-    # 1. التقويم كيظهر ديماً فـ الصفحة (خارج أي شرط)
-    date_range = st.date_input(
-        "📅 Sélectionner une date ou une période :",
-        value=(),
-        format="DD/MM/YYYY",
-        key="calendar_di_multi"
-    )
+        # 1. التقويم
+        date_range = st.date_input(
+            "📅 Sélectionner une date ou une période :",
+            value=(),
+            format="DD/MM/YYYY",
+            key="calendar_di_tab3"
+        )
 
-    # 2. معالجة البيانات فقط إلا كانت متوفرة
-    if 'df' in locals() and df is not None and not df.empty:
-        df_temp = df.copy()
-        
-        if 'DATE' in df_temp.columns:
-            df_temp['DATE_DT'] = pd.to_datetime(df_temp['DATE'], dayfirst=True, errors='coerce').dt.date
+        # 2. معالجة وتصفية البيانات
+        if 'df' in locals() and df is not None and not df.empty:
+            df_temp = df.copy()
+            
+            if 'DATE' in df_temp.columns:
+                df_temp['DATE_DT'] = pd.to_datetime(df_temp['DATE'], dayfirst=True, errors='coerce').dt.date
+                df_filtered = pd.DataFrame()
 
-            df_filtered = pd.DataFrame()
-            dates_choisies = []
+                if len(date_range) == 2:
+                    start_date, end_date = date_range
+                    mask = (df_temp['DATE_DT'] >= start_date) & (df_temp['DATE_DT'] <= end_date)
+                    df_filtered = df_temp[mask]
+                elif len(date_range) == 1:
+                    single_date = date_range[0]
+                    mask = (df_temp['DATE_DT'] == single_date)
+                    df_filtered = df_temp[mask]
 
-            # فلترة حسب خيار التقويم
-            if len(date_range) == 2:
-                start_date, end_date = date_range
-                mask = (df_temp['DATE_DT'] >= start_date) & (df_temp['DATE_DT'] <= end_date)
-                df_filtered = df_temp[mask]
-                dates_choisies = list(df_filtered['DATE'].dropna().unique())
+                # 3. عرض الجدول وزر التحميل
+                if not df_filtered.empty:
+                    st.success(f"✅ تم العثور على {len(df_filtered)} تسجيل.")
+                    st.dataframe(df_filtered.drop(columns=['DATE_DT'], errors='ignore'), use_container_width=True)
 
-            elif len(date_range) == 1:
-                single_date = date_range[0]
-                mask = (df_temp['DATE_DT'] == single_date)
-                df_filtered = df_temp[mask]
-                dates_choisies = list(df_filtered['DATE'].dropna().unique())
-
-            # 3. عرض النتائج والزر
-            if dates_choisies:
-                st.success(f"✅ {len(df_filtered)} enregistrement(s) trouvé(s) pour {len(dates_choisies)} date(s).")
-                
-                # جدول المعاينة
-                st.dataframe(df_filtered.drop(columns=['DATE_DT'], errors='ignore'), use_container_width=True)
-                
-                # زر إنجاز الـ PDF
-                if st.button("📄 Générer DI Globale en PDF", type="primary"):
-                    pdf_bytes = generate_multi_di_pdf(df_filtered)
-                    st.download_button(
-                        label="⬇️ Télécharger le Fichier PDF",
-                        data=pdf_bytes,
-                        file_name="Demandes_Intervention.pdf",
-                        mime="application/pdf"
-                    )
-            elif len(date_range) > 0:
-                st.warning("⚠️ Aucune donnée trouvée pour cette période فـ Google Sheet.")
-            else:
-                st.info("💡 Veuillez choisir une date ou une période dans le calendrier ci-dessus.")
-        else:
-            st.error("⚠️ Le colonne 'DATE' n'existe pas dans la feuille Google Sheets.")
-    else:
-        st.warning("⏳ Chargement des données Google Sheets en cours...")
+                    if st.button("📄 Générer DI Globale en PDF", type="primary"):
+                        # 💡 ملاحظة: استبدل 'generate_pdf' بالسمية الحقيقية للدالة اللي عندك فـ Tab 2
+                        try:
+                            pdf_bytes = generate_pdf(df_filtered) 
+                            st.download_button(
+                                label="⬇️ Télécharger le Fichier PDF",
+                                data=pdf_bytes,
+                                file_name="Demandes_Intervention.pdf",
+                                mime="application/pdf"
+                            )
+                        except NameError:
+                            st.error("⚠️ الدالة ديال الـ PDF غير معروفة. تأكد من اسم الدالة المستعملة فـ Tab 2 وحط سميتها هنا!")
+                elif len(date_range) > 0:
+                    st.warning("⚠️ Aucune donnée trouvée pour cette période.")
+                else:
+                    st.info("💡 Veuillez choisir une date ou une période dans le calendrier ci-dessus.")

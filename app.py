@@ -17,20 +17,73 @@ from docx import Document
 from docxtpl import DocxTemplate, RichText
 
 # ==========================================
-# 0. CONFIGURATION DE LA PAGE ET STYLES CSS
+# 0. CONFIGURATION ET CONSTANTES GLOBALES
 # ==========================================
 st.set_page_config(
-    page_title="Suivi Chantier - Génie Civil & Routes",
+    page_title="Suivi Chantier - Génie Civil",
     page_icon="🏗️",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed"  # Masque la barre latérale au démarrage sur mobile
 )
 
-# Application du CSS personnalisé + Image de fond Pinterest
+DOSSIER_CHANTIER = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
+COL_PARTIE = "PARTIE D'OUVRAGE"
+
+COLUMNS_TEMPLATE = [
+    "DATE", "TITRE DE LA NATURE DES TRAVAUX", COL_PARTIE, 
+    "SITUATION", "ACTIVITÉ RÉALISÉE", "ÉSSAI/ CONTRÔLE RÉALISÉE", 
+    "RÉFÉRENCE DE PROCÉDURE", "PIÈCES JOINTES", "CRÉÉ PAR"
+]
+
+USER_COLUMNS = ["username", "password", "role", "actif"]
+
+LIAISONS = {
+    "ARASE DE PST": {
+        "procedure": "TER-PEX-05-00", 
+        "pieces": "* Fiche de suivi de la PST\n* Fiche de réception topographique\n* PVs laboratoire"
+    },
+    "ARASE DE TERRASSEMENT": {
+        "procedure": "TER-PEX-03-00", 
+        "pieces": "* Fiche de contrôle des déblais\n* Fiche de réception topographique\n* PVs laboratoire"
+    },
+    "ASSISE DE REMBLAIS PURGE": {
+        "procedure": "TER-PEX-04-00", 
+        "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* Fiche d'identification de la purge\n* PVs laboratoire"
+    },
+    "ASSISE DE REMBLAIS": {
+        "procedure": "TER-PEX-04-00", 
+        "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* PVs laboratoire"
+    },
+    "COUCHE DE FORME": {
+        "procedure": "TER-PEX-09-00", 
+        "pieces": "* Fiche de suivi et de contrôle de la CDF\n* Fiche de réception topographique\n* PVs laboratoire"
+    },
+    "DÉCAPAGE": {
+        "procedure": "TER-PEX-02-00", 
+        "pieces": "* Fiche de suivi et de contrôle du décapage\n* Fiche des sections à décaper\n* Fiche de réception topographique"
+    },
+    "DEGAGEMENT D'EMPRISE": {
+        "procedure": "TER-PEX-01-00", 
+        "pieces": "* Fiche de suivi et de contrôle du dégagement des emprises\n* Fiche de réception topographique\n* Constat dégagement d'emprise"
+    },
+    "REMBLAIS": {
+        "procedure": "TER-PEX-04-00", 
+        "pieces": "* Fiche de suivi et de contrôle des remblais\n* PVs laboratoire"
+    },
+    "REMBLAIS PST": {
+        "procedure": "TER-PEX-05-00", 
+        "pieces": "* Fiche de suivi et de contrôle des remblais PST\n* PVs laboratoire"
+    }
+}
+
+# ==========================================
+# 1. STYLES CSS RESPONSIVES ET TOUCH-FRIENDLY
+# ==========================================
 st.markdown("""
 <style>
-    /* Image d'arrière-plan avec voile sombre pour la lisibilité */
+    /* Arrière-plan principal */
     .stApp {
-        background-image: linear-gradient(rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.82)), 
+        background-image: linear-gradient(rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.88)), 
                           url("https://i.pinimg.com/736x/3d/6b/f7/3d6bf78abc63f1c9b000d4bc5fbe7fa3.jpg");
         background-size: cover;
         background-position: center;
@@ -40,44 +93,89 @@ st.markdown("""
 
     [data-testid="stHeader"] { background-color: rgba(0, 0, 0, 0); }
 
+    /* En-tête de l'application */
     .gc-header {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
         color: #ffffff;
-        padding: 22px 28px;
+        padding: 16px 20px;
         border-radius: 12px;
-        border-left: 8px solid #ff6b00;
+        border-left: 6px solid #ff6b00;
         box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.25);
-        margin-bottom: 25px;
+        margin-bottom: 15px;
     }
-    .gc-header h1 { color: #ffffff !important; font-size: 26px !important; font-weight: 800 !important; margin: 0 !important; }
-    .gc-header p { color: #94a3b8; margin: 6px 0 0 0; font-size: 14px; }
+    .gc-header h1 { color: #ffffff !important; font-size: 22px !important; font-weight: 800 !important; margin: 0 !important; }
+    .gc-header p { color: #94a3b8; margin: 4px 0 0 0; font-size: 13px; }
     
+    /* Boutons agrandis pour faciliter le clic au pouce */
+    .stButton > button {
+        min-height: 48px !important;
+        font-size: 15px !important;
+        font-weight: 700 !important;
+        border-radius: 10px !important;
+        width: 100% !important;
+    }
+
     .stButton > button[kind="primary"] {
         background-color: #ff6b00 !important; 
         color: #ffffff !important; 
         border: none !important; 
-        border-radius: 8px !important; 
-        font-weight: 700 !important;
     }
     
+    /* Style de la barre latérale */
     section[data-testid="stSidebar"] { 
-        background-color: rgba(15, 23, 42, 0.95) !important; 
+        background-color: rgba(15, 23, 42, 0.98) !important; 
         color: #ffffff !important; 
     }
     section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] .stMarkdown h1 { 
         color: #f1f5f9 !important; 
     }
+
+    /* Media queries pour l'adaptation mobile (smartphones et tablettes) */
+    @media (max-width: 768px) {
+        .block-container {
+            padding-top: 1rem !important;
+            padding-bottom: 2rem !important;
+            padding-left: 0.8rem !important;
+            padding-right: 0.8rem !important;
+        }
+
+        .gc-header {
+            padding: 12px 14px !important;
+        }
+
+        .gc-header h1 {
+            font-size: 18px !important;
+        }
+
+        .gc-header p {
+            font-size: 11px !important;
+        }
+
+        button[data-baseweb="tab"] {
+            font-size: 13px !important;
+            padding: 8px 10px !important;
+        }
+
+        div[data-testid="stDataFrame"] {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        div[data-testid="stForm"] {
+            padding: 12px !important;
+        }
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1. SÉCURITÉ ET HACHAGE
+# 2. SÉCURITÉ ET HACHAGE
 # ==========================================
 def hash_password(password):
     return hashlib.sha256(str(password).encode('utf-8')).hexdigest()
 
 # ==========================================
-# 2. CONNEXION A GOOGLE SHEETS
+# 3. INTERACTION GOOGLE SHEETS
 # ==========================================
 @st.cache_resource
 def get_gsheets_client():
@@ -96,10 +194,7 @@ def get_spreadsheet():
     url = st.secrets["gsheets"]["spreadsheet_url"]
     return client.open_by_url(url)
 
-USER_COLUMNS = ["username", "password", "role", "actif"]
-
 def load_users():
-    """Charge les utilisateurs depuis l'onglet 'Utilisateurs' ou initialise le compte admin."""
     try:
         sh = get_spreadsheet()
         try:
@@ -132,9 +227,9 @@ def save_users(df_users):
         ws.clear()
         values = [df_users.columns.values.tolist()] + df_users.astype(str).values.tolist()
         ws.update(values)
-        return True, "✅ Utilisateurs mis à jour avec succès !"
+        return True, "✅ Utilisateurs mis à jour !"
     except Exception as e:
-        return False, f"❌ Erreur de mise à jour des utilisateurs : {e}"
+        return False, f"❌ Erreur : {e}"
 
 def get_sheet_names_gsheets():
     try:
@@ -171,34 +266,13 @@ def save_data_to_sheet(df_to_save, sheet_name):
         ws.clear()
         values = [df_clean.columns.values.tolist()] + df_clean.astype(str).values.tolist()
         ws.update(values)
-        return True, "✅ Données enregistrées dans Google Sheets avec succès !"
+        return True, "✅ Données enregistrées dans Google Sheets !"
     except Exception as e:
-        return False, f"❌ Erreur lors de l'enregistrement dans Google Sheets : {e}"
+        return False, f"❌ Erreur d'enregistrement : {e}"
 
 # ==========================================
-# 3. CONSTANTES ET FONCTIONS TRAITEMENT
+# 4. FONCTIONS DE GÉNÉRATION DOCX & PDF
 # ==========================================
-DOSSIER_CHANTIER = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
-COL_PARTIE = "PARTIE D'OUVRAGE"
-
-COLUMNS_TEMPLATE = [
-    "DATE", "TITRE DE LA NATURE DES TRAVAUX", COL_PARTIE, 
-    "SITUATION", "ACTIVITÉ RÉALISÉE", "ÉSSAI/ CONTRÔLE RÉALISÉE", 
-    "RÉFÉRENCE DE PROCÉDURE", "PIÈCES JOINTES", "CRÉÉ PAR"
-]
-
-LIAISONS = {
-    "ARASE DE PST": {"procedure": "TER-PEX-05-00", "pieces": "* Fiche de suivi de la PST\n* Fiche de réception topographique\n* PVs laboratoire"},
-    "ARASE DE TERRASSEMENT": {"procedure": "TER-PEX-03-00", "pieces": "* Fiche de contrôle des déblais\n* Fiche de réception topographique\n* PVs laboratoire"},
-    "ASSISE DE REMBLAIS PURGE": {"procedure": "TER-PEX-04-00", "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* Fiche d'identification de la purge\n* PVs laboratoire"},
-    "ASSISE DE REMBLAIS": {"procedure": "TER-PEX-04-00", "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* PVs laboratoire"},
-    "COUCHE DE FORME": {"procedure": "TER-PEX-09-00", "pieces": "* Fiche de suivi et de contrôle de la CDF\n* Fiche de réception topographique\n* PVs laboratoire"},
-    "DÉCAPAGE": {"procedure": "TER-PEX-02-00", "pieces": "* Fiche de suivi et de contrôle du décapage\n* Fiche des sections à décaper\n* Fiche de réception topographique"},
-    "DEGAGEMENT D'EMPRISE": {"procedure": "TER-PEX-01-00", "pieces": "* Fiche de suivi et de contrôle du dégagement des emprises\n* Fiche de réception topographique\n* Constat dégagement d'emprise"},
-    "REMBLAIS": {"procedure": "TER-PEX-04-00", "pieces": "* Fiche de suivi et de contrôle des remblais\n* PVs laboratoire"},
-    "REMBLAIS PST": {"procedure": "TER-PEX-05-00", "pieces": "* Fiche de suivi et de contrôle des remblais PST\n* PVs laboratoire"}
-}
-
 def text_to_richtext(text):
     if not text or pd.isna(text): return ""
     rt = RichText()
@@ -288,7 +362,7 @@ def generer_di_style_vba(chemin_modele, df_jour):
             word_table = tbl
             break
             
-    if not word_table: raise ValueError("Tableau introuvable dans le Word.")
+    if not word_table: raise ValueError("Tableau introuvable dans le fichier Word.")
     
     for idx, (_, row) in enumerate(df_jour.iterrows()):
         date_val = get_col_val(row, "DATE")
@@ -375,7 +449,7 @@ def generer_pack_di_zip(df_filtered):
     return zip_buffer, len(dates_uniques)
 
 # ==========================================
-# 4. MODULE D'AUTHENTIFICATION
+# 5. GESTION DE L'AUTHENTIFICATION
 # ==========================================
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
@@ -384,8 +458,8 @@ if "authenticated" not in st.session_state:
 
 def page_connexion():
     st.markdown("""
-    <div style="max-width: 450px; margin: 80px auto; padding: 30px; background: rgba(15, 23, 42, 0.9); border-radius: 12px; border: 1px solid #334155; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
-        <h2 style="text-align: center; color: #ffffff; margin-bottom: 20px;">🔒 Connexion Suivi Chantier</h2>
+    <div style="max-width: 400px; margin: 30px auto; padding: 20px; background: rgba(15, 23, 42, 0.95); border-radius: 12px; border: 1px solid #334155; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+        <h3 style="text-align: center; color: #ffffff; margin-bottom: 15px;">🔒 Connexion Chantier</h3>
     """, unsafe_allow_html=True)
     
     with st.form("login_form"):
@@ -414,7 +488,7 @@ def page_connexion():
                         st.success("Connexion réussie !")
                         st.rerun()
                     else:
-                        st.error("🚫 Ce compte a été désactivé.")
+                        st.error("🚫 Compte désactivé.")
                 else:
                     st.error("❌ Identifiants invalides.")
     st.markdown("</div>", unsafe_allow_html=True)
@@ -424,10 +498,9 @@ if not st.session_state["authenticated"]:
     st.stop()
 
 # ==========================================
-# 5. BARRE LATÉRALE ET PROJETS
+# 6. BARRE LATÉRALE & GESTION DES PROJETS
 # ==========================================
-st.sidebar.markdown(f"👤 Connecté : **{st.session_state['username']}**")
-st.sidebar.markdown(f"🛡️ Rôle : **{st.session_state['role']}**")
+st.sidebar.markdown(f"👤 **{st.session_state['username']}** ({st.session_state['role']})")
 
 if st.sidebar.button("🚪 Déconnexion", use_container_width=True):
     st.session_state["authenticated"] = False
@@ -436,15 +509,15 @@ if st.sidebar.button("🚪 Déconnexion", use_container_width=True):
     st.rerun()
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("### 🌐 **Google Sheets Chantier**")
+st.sidebar.markdown("### 🌐 **Google Sheets**")
 
 chantiers_existants = get_sheet_names_gsheets()
 chantier_actif = st.sidebar.selectbox("📌 **Projet Actif :**", options=chantiers_existants)
 
 if st.session_state["role"] == "Admin":
-    with st.sidebar.expander("➕ **Créer un Nouveau Projet**", expanded=False):
-        nouveau_projet_nom = st.text_input("Nom du nouveau projet :", key="new_proj_input")
-        if st.button("✨ Créer le Projet", type="primary", key="btn_create_proj", use_container_width=True):
+    with st.sidebar.expander("➕ **Nouveau Projet**", expanded=False):
+        nouveau_projet_nom = st.text_input("Nom du projet :", key="new_proj_input")
+        if st.button("✨ Créer Projet", type="primary", key="btn_create_proj", use_container_width=True):
             nom_clean = nouveau_projet_nom.strip()
             if nom_clean:
                 if nom_clean in chantiers_existants:
@@ -465,33 +538,34 @@ if "DATE" in df.columns:
     df["DATE"] = df["DATE"].dt.strftime('%d/%m/%Y').fillna("")
 
 # ==========================================
-# 6. INTERFACE ET NAVIGATION DES ONGLETS
+# 7. INTERFACE PRINCIPALE (ONGLETS)
 # ==========================================
 st.markdown(f"""
 <div class="gc-header">
-    <h1>🛣️ Plateforme Génie Civil & Travaux Routiers</h1>
-    <p>Projet Actif : <b>{chantier_actif}</b></p>
+    <h1>🛣️ Suivi Génie Civil</h1>
+    <p>Projet : <b>{chantier_actif}</b></p>
 </div>
 """, unsafe_allow_html=True)
 
 liste_onglets = [
-    "📝 **Nouvelle Saisie Chantier**", 
-    "📊 **Registre & Génération Individuelle**", 
-    "📅 **Demandes d'Intervention (DI)**"
+    "📝 **Saisie**", 
+    "📊 **Registre**", 
+    "📅 **DI**"
 ]
 
 if st.session_state["role"] == "Admin":
-    liste_onglets.append("👥 **Gestion des Utilisateurs**")
+    liste_onglets.append("👥 **Accès**")
 
 tabs = st.tabs(liste_onglets)
 tab1, tab2, tab3 = tabs[0], tabs[1], tabs[2]
 
 # -------------------------------------------------------------
-# TAB 1 : SAISIE DE FICHE
+# TAB 1 : SAISIE DES DONNÉES
 # -------------------------------------------------------------
 with tab1:
-    st.markdown("##### 👷 **Ajouter une nouvelle fiche de contrôle**")
-    col1, col2 = st.columns(2)
+    st.markdown("##### 👷 **Ajouter une fiche**")
+    
+    col1, col2 = st.columns([1, 1])
     with col1:
         date_saisie = st.date_input("🗓️ Date des Travaux", value=datetime.today(), format="DD/MM/YYYY")
         nature_selectionnee = st.selectbox("📌 Nature des travaux", options=list(LIAISONS.keys()))
@@ -503,16 +577,20 @@ with tab1:
             
         options_partie = parties_existantes + ["➕ Autre / Nouvelle partie..."]
         partie_choisie = st.selectbox("🧱 Partie d'ouvrage", options=options_partie)
-        partie_ouvrage = st.text_input("✍️ Saisir la nouvelle Partie d'ouvrage :") if partie_choisie == "➕ Autre / Nouvelle partie..." else partie_choisie
+        partie_ouvrage = st.text_input("✍️ Nouvelle Partie :") if partie_choisie == "➕ Autre / Nouvelle partie..." else partie_choisie
         situation = st.text_input("📍 Situation / PK", placeholder="Ex: PK 1+120 AU PK 1+220")
         
     with col2:
-        activite = st.text_area("🚜 Activité réalisée", height=80)
-        essai = st.selectbox("🧪 Essai / Contrôle réalisé", options=["Aucun", "TENEUR EN EAU", "CAMPACITÉ", "ESSAI À LA PLAQUE", "ESSAI À LA PLAQUE + CAMPACITÉ", "PRELEVEMENT APRES COMPACTAGE", "PRELEVEMENT AVANT COMPACTAGE", "IDENTIFICATION DES MATERIAUX", "PRELEVEMENT"])
-        procedure = st.text_input("📑 Référence procédure", value=info_liaison["procedure"])
-        pieces_jointes = st.text_area("📎 Pièces jointes", value=info_liaison["pieces"], height=100)
+        activite = st.text_area("🚜 Activité réalisée", height=70)
+        essai = st.selectbox("🧪 Essai / Contrôle", options=[
+            "Aucun", "TENEUR EN EAU", "CAMPACITÉ", "ESSAI À LA PLAQUE", 
+            "ESSAI À LA PLAQUE + CAMPACITÉ", "PRELEVEMENT APRES COMPACTAGE", 
+            "PRELEVEMENT AVANT COMPACTAGE", "IDENTIFICATION DES MATERIAUX", "PRELEVEMENT"
+        ])
+        procedure = st.text_input("📑 Procédure", value=info_liaison["procedure"])
+        pieces_jointes = st.text_area("📎 Pièces jointes", value=info_liaison["pieces"], height=80)
 
-    if st.button("💾 Enregistrer dans Google Sheets", type="primary"):
+    if st.button("💾 Enregistrer dans Google Sheets", type="primary", use_container_width=True):
         new_entry = {
             "DATE": date_saisie.strftime('%d/%m/%Y'),
             "TITRE DE LA NATURE DES TRAVAUX": nature_selectionnee,
@@ -533,30 +611,28 @@ with tab1:
             st.error(msg)
 
 # -------------------------------------------------------------
-# TAB 2 : REGISTRE DE CHANTIER (SÉCURISÉ AVEC TRY...EXCEPT)
+# TAB 2 : REGISTRE DE CHANTIER (ÉDITEUR & IMPRESSION)
 # -------------------------------------------------------------
 with tab2:
     st.markdown("##### 🔍 **Registre des Travaux**")
 
     try:
-        # --- BARRE DE FILTRES ---
-        with st.expander("🌪️ **Filtres de recherche**", expanded=True):
-            col_f1, col_f2, col_f3 = st.columns(3)
+        with st.expander("🌪️ **Filtres de recherche**", expanded=False):
+            col_f1, col_f2, col_f3 = st.columns([1, 1, 1])
             with col_f1:
                 auteurs_existants = sorted(list(set([str(a) for a in df["CRÉÉ PAR"].unique() if str(a).strip() and str(a).lower() != 'nan']))) if "CRÉÉ PAR" in df.columns else []
-                filtre_auteur = st.multiselect("👤 Créé par :", options=auteurs_existants)
+                filtre_auteur = st.multiselect("👤 Auteur :", options=auteurs_existants)
             
             with col_f2:
                 natures_existantes = sorted(list(set([str(n) for n in df["TITRE DE LA NATURE DES TRAVAUX"].unique() if str(n).strip() and str(n).lower() != 'nan']))) if "TITRE DE LA NATURE DES TRAVAUX" in df.columns else []
-                filtre_nature = st.multiselect("📌 Nature des travaux :", options=natures_existantes)
+                filtre_nature = st.multiselect("📌 Nature :", options=natures_existantes)
 
             with col_f3:
                 parties_filtre = sorted(list(set([str(p) for p in df[COL_PARTIE].unique() if str(p).strip() and str(p).lower() != 'nan']))) if COL_PARTIE in df.columns else []
-                filtre_partie = st.multiselect("🧱 Partie d'ouvrage :", options=parties_filtre)
+                filtre_partie = st.multiselect("🧱 Partie :", options=parties_filtre)
 
-            recherche_mot = st.text_input("🔍 Recherche globale par mot-clé (Ex: PK, type d'activité...) :")
+            recherche_mot = st.text_input("🔍 Recherche globale par mot-clé :")
 
-        # APPLICATION DES FILTRES SUR DF
         df_filtered = df.copy()
 
         if filtre_auteur:
@@ -574,7 +650,6 @@ with tab2:
                 df_filtered.apply(lambda row: row.astype(str).str.lower().str.contains(m_clean).any(), axis=1)
             ]
 
-        # PRÉPARATION DE L'ÉDITEUR DE TABLEAU
         df_editor = df_filtered.copy()
         if "Imprimer" not in df_editor.columns:
             df_editor.insert(0, "Imprimer", False)
@@ -582,24 +657,23 @@ with tab2:
         edited_df = st.data_editor(
             df_editor, 
             column_config={
-                "CRÉÉ PAR": st.column_config.TextColumn("Créé par", disabled=True)
+                "CRÉÉ PAR": st.column_config.TextColumn("Créé par", disabled=True),
+                "Imprimer": st.column_config.CheckboxColumn("Sélection", default=False)
             },
             num_rows="dynamic", 
-            height=400, 
+            height=350, 
             use_container_width=True
         )
 
-        col_act1, col_act2 = st.columns(2)
+        col_act1, col_act2 = st.columns([1, 1])
         with col_act1:
-            if st.button("💾 Enregistrer les modifications", type="secondary", use_container_width=True):
+            if st.button("💾 Enregistrer modifications", type="secondary", use_container_width=True):
                 try:
                     edited_clean = edited_df.drop(columns=["Imprimer"], errors="ignore")
                     
-                    # Mise à jour sécurisée des lignes modifiées dans la base complète
                     df_to_save = df.copy()
                     df_to_save.update(edited_clean)
 
-                    # Ajout des nouvelles lignes éventuelles saisies dans l'éditeur
                     nouveaux_indexes = edited_clean.index.difference(df_to_save.index)
                     if not nouveaux_indexes.empty:
                         df_to_save = pd.concat([df_to_save, edited_clean.loc[nouveaux_indexes]], ignore_index=True)
@@ -611,15 +685,15 @@ with tab2:
                     else:
                         st.error(msg)
                 except Exception as e_save:
-                    st.error(f"❌ Erreur lors de la sauvegarde des modifications du tableau : {e_save}")
+                    st.error(f"❌ Erreur lors de la sauvegarde : {e_save}")
 
         with col_act2:
             lignes_selectionnees = edited_df[edited_df["Imprimer"] == True]
             nb_selections = len(lignes_selectionnees)
             
-            if st.button(f"📦 Générer les Fiches Sélectionnées ({nb_selections})", type="primary", use_container_width=True):
+            if st.button(f"📦 Générer ({nb_selections}) Fiche(s)", type="primary", use_container_width=True):
                 if nb_selections == 0:
-                    st.warning("⚠️ Cochez au moins une case 'Imprimer' dans le tableau.")
+                    st.warning("⚠️ Cochez au moins une case dans le tableau.")
                 else:
                     try:
                         zip_buffer = io.BytesIO()
@@ -649,64 +723,73 @@ with tab2:
                         if fichiers_crees > 0:
                             zip_buffer.seek(0)
                             st.download_button(
-                                label="📦 Télécharger Pack ZIP",
+                                label="⬇️ Télécharger Pack ZIP",
                                 data=zip_buffer,
                                 file_name="Fiches_Chantier.zip",
                                 mime="application/zip",
                                 use_container_width=True
                             )
                         else:
-                            st.error("❌ Aucun fichier n'a pu être généré. Vérifiez l'existence des modèles Word.")
+                            st.error("❌ Aucun modèle Word trouvé correspondant.")
                     except Exception as e_gen:
-                        st.error(f"❌ Erreur lors de la génération des documents : {e_gen}")
+                        st.error(f"❌ Erreur de génération : {e_gen}")
 
     except Exception as e_tab:
-        st.error(f"❌ Une erreur est survenue lors du traitement du tableau : {e_tab}")
+        st.error(f"❌ Erreur sur le tableau : {e_tab}")
 
 # -------------------------------------------------------------
-# TAB 3 : DEMANDES D'INTERVENTION
+# TAB 3 : DEMANDES D'INTERVENTION (DI)
 # -------------------------------------------------------------
 with tab3:
-    st.subheader("📅 Génération des Demandes d'Intervention par Date")
-    date_range = st.date_input("📅 Sélectionner une date ou période :", value=(), format="DD/MM/YYYY")
+    st.subheader("📅 Demandes d'Intervention (DI)")
+    date_range = st.date_input("📅 Sélectionner date / période :", value=(), format="DD/MM/YYYY")
     if 'df' in locals() and df is not None and not df.empty:
         df_temp = df.copy()
         df_temp['DATE_DT'] = pd.to_datetime(df_temp['DATE'], dayfirst=True, errors='coerce').dt.date
-        df_filtered = pd.DataFrame()
+        df_filtered_di = pd.DataFrame()
+        
         if len(date_range) == 2:
-            df_filtered = df_temp[(df_temp['DATE_DT'] >= date_range[0]) & (df_temp['DATE_DT'] <= date_range[1])]
+            df_filtered_di = df_temp[(df_temp['DATE_DT'] >= date_range[0]) & (df_temp['DATE_DT'] <= date_range[1])]
         elif len(date_range) == 1:
-            df_filtered = df_temp[df_temp['DATE_DT'] == date_range[0]]
+            df_filtered_di = df_temp[df_temp['DATE_DT'] == date_range[0]]
 
-        if not df_filtered.empty:
-            st.dataframe(df_filtered.drop(columns=['DATE_DT'], errors='ignore'), use_container_width=True)
-            if st.button("📦 Générer Pack DI", type="primary"):
-                zip_data, count_dates = generer_pack_di_zip(df_filtered)
-                st.download_button(label="⬇️ Télécharger Le Pack ZIP", data=zip_data, file_name="Pack_DI.zip", mime="application/zip", use_container_width=True)
+        if not df_filtered_di.empty:
+            st.dataframe(df_filtered_di.drop(columns=['DATE_DT'], errors='ignore'), use_container_width=True)
+            if st.button("📦 Générer Pack DI", type="primary", use_container_width=True):
+                zip_data, count_dates = generer_pack_di_zip(df_filtered_di)
+                st.download_button(
+                    label="⬇️ Télécharger Le Pack ZIP", 
+                    data=zip_data, 
+                    file_name="Pack_DI.zip", 
+                    mime="application/zip", 
+                    use_container_width=True
+                )
+        elif len(date_range) > 0:
+            st.info("ℹ️ Aucune donnée trouvée pour la période sélectionnée.")
 
 # -------------------------------------------------------------
-# TAB 4 : ESPACE ADMINISTRATEUR (GESTION ACCÈS)
+# TAB 4 : ESPACE ADMINISTRATEUR
 # -------------------------------------------------------------
 if st.session_state["role"] == "Admin":
     tab_admin = tabs[3]
     with tab_admin:
-        st.markdown("##### 👥 **Administration des Accès Utilisateurs**")
+        st.markdown("##### 👥 **Gestion des Utilisateurs**")
         df_users = load_users()
 
-        col_u1, col_u2 = st.columns([1, 2])
+        col_u1, col_u2 = st.columns([1, 1])
 
         with col_u1:
-            st.markdown("**➕ Ajouter un nouvel utilisateur**")
+            st.markdown("**➕ Ajouter un utilisateur**")
             with st.form("form_add_user"):
                 new_username = st.text_input("Nom d'utilisateur").strip()
                 new_password = st.text_input("Mot de passe", type="password").strip()
                 new_role = st.selectbox("Rôle", options=["Utilisateur", "Admin"])
                 new_status = st.selectbox("Compte Actif", options=["OUI", "NON"])
-                btn_add_user = st.form_submit_button("Ajouter Utilisateur", type="primary")
+                btn_add_user = st.form_submit_button("Ajouter Utilisateur", type="primary", use_container_width=True)
 
                 if btn_add_user:
                     if not new_username or not new_password:
-                        st.error("⚠️ Les champs nom et mot de passe sont obligatoires.")
+                        st.error("⚠️ Champs obligatoires manquants.")
                     elif new_username in df_users["username"].astype(str).values:
                         st.error("⚠️ Cet utilisateur existe déjà.")
                     else:
@@ -725,11 +808,11 @@ if st.session_state["role"] == "Admin":
                             st.error(msg)
 
         with col_u2:
-            st.markdown("**📜 Liste des utilisateurs enregistrés**")
+            st.markdown("**📜 Utilisateurs inscrits**")
             users_edited = st.data_editor(
                 df_users,
                 column_config={
-                    "password": st.column_config.TextColumn("Mot de passe (SHA-256)", disabled=True),
+                    "password": st.column_config.TextColumn("Mot de passe (Hash)", disabled=True),
                     "role": st.column_config.SelectboxColumn("Rôle", options=["Admin", "Utilisateur"], required=True),
                     "actif": st.column_config.SelectboxColumn("Actif", options=["OUI", "NON"], required=True)
                 },
@@ -737,18 +820,18 @@ if st.session_state["role"] == "Admin":
                 use_container_width=True
             )
 
-            if st.button("💾 Enregistrer les modifications utilisateurs", type="secondary"):
+            if st.button("💾 Sauvegarder les comptes", type="secondary", use_container_width=True):
                 ok, msg = save_users(users_edited)
                 if ok:
-                    st.success("Accès modifiés enregistrés avec succès !")
+                    st.success("Modifications enregistrées !")
                     st.rerun()
                 else:
                     st.error(msg)
 
-            with st.expander("🔑 **Réinitialiser le mot de passe d'un utilisateur**"):
+            with st.expander("🔑 **Réinitialiser un mot de passe**"):
                 user_to_reset = st.selectbox("Sélectionner un compte :", options=df_users["username"].tolist())
                 reset_pass = st.text_input("Nouveau mot de passe :", type="password", key="reset_pass_val")
-                if st.button("🔒 Valider le nouveau mot de passe"):
+                if st.button("🔒 Valider le mot de passe", use_container_width=True):
                     if reset_pass.strip():
                         df_users.loc[df_users["username"] == user_to_reset, "password"] = hash_password(reset_pass.strip())
                         ok, msg = save_users(df_users)

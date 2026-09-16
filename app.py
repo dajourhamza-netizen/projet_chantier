@@ -242,6 +242,33 @@ def get_col_val(row, *candidates):
                     return val_str
     return ""
 
+def convertir_docx_vers_pdf_bytes(docx_path, temp_dir):
+    """Convertit un fichier DOCX en PDF via LibreOffice (prioritaire sur Linux) puis docx2pdf (Windows)"""
+    base_name = os.path.splitext(os.path.basename(docx_path))[0]
+    expected_pdf = os.path.join(temp_dir, f"{base_name}.pdf")
+
+    # 1. Tentative via LibreOffice (Incontournable sous Linux / Codespaces / Streamlit Cloud)
+    try:
+        cmd = f'soffice --headless --convert-to pdf "{docx_path}" --outdir "{temp_dir}"'
+        subprocess.run(cmd, shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if os.path.exists(expected_pdf):
+            with open(expected_pdf, "rb") as f:
+                return f.read()
+    except Exception:
+        pass
+
+    # 2. Tentative via docx2pdf (Windows avec Microsoft Word)
+    try:
+        from docx2pdf import convert
+        convert(docx_path, expected_pdf)
+        if os.path.exists(expected_pdf):
+            with open(expected_pdf, "rb") as f:
+                return f.read()
+    except Exception:
+        pass
+
+    return None
+
 def generer_docx_et_pdf_bytes(chemin_modele, contexte):
     with tempfile.TemporaryDirectory() as temp_dir:
         doc = DocxTemplate(chemin_modele)
@@ -249,18 +276,13 @@ def generer_docx_et_pdf_bytes(chemin_modele, contexte):
         docx_temp_path = os.path.join(temp_dir, "temp.docx")
         doc.save(docx_temp_path)
         
-        with open(docx_temp_path, "rb") as f: docx_bytes = f.read()
+        with open(docx_temp_path, "rb") as f: 
+            docx_bytes = f.read()
 
-        pdf_temp_path = os.path.join(temp_dir, "temp.pdf")
-        pdf_bytes = None
-        try:
-            from docx2pdf import convert
-            convert(docx_temp_path, pdf_temp_path)
-            if os.path.exists(pdf_temp_path):
-                with open(pdf_temp_path, "rb") as f: pdf_bytes = f.read()
-        except Exception: pass
+        pdf_bytes = convertir_docx_vers_pdf_bytes(docx_temp_path, temp_dir)
+        if pdf_bytes is None: 
+            pdf_bytes = docx_bytes
 
-        if pdf_bytes is None: pdf_bytes = docx_bytes
         return docx_bytes, pdf_bytes
 
 def generer_di_style_vba(chemin_modele, df_jour):
@@ -315,7 +337,6 @@ def generer_di_une_date(df_jour):
 
     with tempfile.TemporaryDirectory() as temp_dir:
         docx_temp_path = os.path.join(temp_dir, "di_single.docx")
-        pdf_temp_path = os.path.join(temp_dir, "di_single.pdf")
 
         if modele_di and os.path.exists(modele_di):
             try:
@@ -357,27 +378,7 @@ def generer_di_une_date(df_jour):
         with open(docx_temp_path, "rb") as f:
             docx_bytes = f.read()
 
-        pdf_bytes = None
-        try:
-            cmd = f"soffice --headless --convert-to pdf \"{docx_temp_path}\" --outdir \"{temp_dir}\""
-            subprocess.run(cmd, shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            out_pdf = os.path.join(temp_dir, "di_single.pdf")
-            if os.path.exists(out_pdf):
-                with open(out_pdf, "rb") as f:
-                    pdf_bytes = f.read()
-        except Exception:
-            pass
-
-        if pdf_bytes is None:
-            try:
-                from docx2pdf import convert
-                convert(docx_temp_path, pdf_temp_path)
-                if os.path.exists(pdf_temp_path):
-                    with open(pdf_temp_path, "rb") as f:
-                        pdf_bytes = f.read()
-            except Exception:
-                pass
-
+        pdf_bytes = convertir_docx_vers_pdf_bytes(docx_temp_path, temp_dir)
         if pdf_bytes is None:
             pdf_bytes = docx_bytes
 

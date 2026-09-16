@@ -533,11 +533,48 @@ with tab1:
             st.error(msg)
 
 # -------------------------------------------------------------
-# TAB 2 : REGISTRE DE CHANTIER
+# TAB 2 : REGISTRE DE CHANTIER (AVEC FILTRES)
 # -------------------------------------------------------------
 with tab2:
     st.markdown("##### 🔍 **Registre des Travaux**")
-    df_editor = df.copy()
+
+    # --- BARRE DE FILTRES ---
+    with st.expander("🌪️ **Filtres de recherche**", expanded=True):
+        col_f1, col_f2, col_f3 = st.columns(3)
+        with col_f1:
+            auteurs_existants = sorted(list(set([str(a) for a in df["CRÉÉ PAR"].unique() if str(a).strip() and str(a).lower() != 'nan']))) if "CRÉÉ PAR" in df.columns else []
+            filtre_auteur = st.multiselect("👤 Créé par :", options=auteurs_existants)
+        
+        with col_f2:
+            natures_existantes = sorted(list(set([str(n) for n in df["TITRE DE LA NATURE DES TRAVAUX"].unique() if str(n).strip() and str(n).lower() != 'nan']))) if "TITRE DE LA NATURE DES TRAVAUX" in df.columns else []
+            filtre_nature = st.multiselect("📌 Nature des travaux :", options=natures_existantes)
+
+        with col_f3:
+            parties_filtre = sorted(list(set([str(p) for p in df[COL_PARTIE].unique() if str(p).strip() and str(p).lower() != 'nan']))) if COL_PARTIE in df.columns else []
+            filtre_partie = st.multiselect("🧱 Partie d'ouvrage :", options=parties_filtre)
+
+        recherche_mot = st.text_input("🔍 Recherche globale par mot-clé (Ex: PK, type d'activité...) :")
+
+    # APPLICATION DES FILTRES SUR DF
+    df_filtered = df.copy()
+
+    if filtre_auteur:
+        df_filtered = df_filtered[df_filtered["CRÉÉ PAR"].astype(str).isin(filtre_auteur)]
+
+    if filtre_nature:
+        df_filtered = df_filtered[df_filtered["TITRE DE LA NATURE DES TRAVAUX"].astype(str).isin(filtre_nature)]
+
+    if filtre_partie:
+        df_filtered = df_filtered[df_filtered[COL_PARTIE].astype(str).isin(filtre_partie)]
+
+    if recherche_mot.strip():
+        m_clean = recherche_mot.strip().lower()
+        df_filtered = df_filtered[
+            df_filtered.apply(lambda row: row.astype(str).str.lower().str.contains(m_clean).any(), axis=1)
+        ]
+
+    # PRÉPARATION DE L'ÉDITEUR
+    df_editor = df_filtered.copy()
     if "Imprimer" not in df_editor.columns:
         df_editor.insert(0, "Imprimer", False)
 
@@ -555,7 +592,17 @@ with tab2:
     with col_act1:
         if st.button("💾 Enregistrer les modifications", type="secondary", use_container_width=True):
             edited_clean = edited_df.drop(columns=["Imprimer"], errors="ignore")
-            success, msg = save_data_to_sheet(edited_clean, sheet_name=chantier_actif)
+            
+            # Mise à jour sécurisée des lignes modifiées dans la base complète
+            df_to_save = df.copy()
+            df_to_save.update(edited_clean)
+
+            # Ajout des nouvelles lignes éventuelles saisies dans l'éditeur
+            nouveaux_indexes = edited_clean.index.difference(df_to_save.index)
+            if not nouveaux_indexes.empty:
+                df_to_save = pd.concat([df_to_save, edited_clean.loc[nouveaux_indexes]], ignore_index=True)
+
+            success, msg = save_data_to_sheet(df_to_save, sheet_name=chantier_actif)
             if success:
                 st.success(msg)
                 st.rerun()

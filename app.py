@@ -8,10 +8,9 @@ import unicodedata
 import zipfile
 import subprocess
 import tempfile
+import hashlib
 import gspread
 from google.oauth2.service_account import Credentials
-
-# Bibliothèques Word
 from docx import Document
 from docxtpl import DocxTemplate, RichText
 
@@ -47,9 +46,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1. CONNEXION A GOOGLE SHEETS
+# 1. SÉCURITÉ ET HACHAGE
 # ==========================================
+def hash_password(password):
+    return hashlib.sha256(str(password).encode('utf-8')).hexdigest()
 
+# ==========================================
+# 2. CONNEXION A GOOGLE SHEETS & UTILISATEURS
+# ==========================================
 @st.cache_resource
 def get_gsheets_client():
     scope = [
@@ -57,10 +61,8 @@ def get_gsheets_client():
         "https://www.googleapis.com/auth/drive"
     ]
     creds_dict = dict(st.secrets["gcp_service_account"])
-    
     if "private_key" in creds_dict:
         creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
-        
     creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
     return gspread.authorize(creds)
 
@@ -69,10 +71,50 @@ def get_spreadsheet():
     url = st.secrets["gsheets"]["spreadsheet_url"]
     return client.open_by_url(url)
 
+USER_COLUMNS = ["username", "password", "role", "actif"]
+
+def load_users():
+    """Charge les utilisateurs depuis l'onglet 'Utilisateurs' ou crée le compte admin par défaut."""
+    try:
+        sh = get_spreadsheet()
+        try:
+            ws = sh.worksheet("Utilisateurs")
+        except gspread.WorksheetNotFound:
+            ws = sh.add_worksheet(title="Utilisateurs", rows=50, cols=10)
+            admin_initial = pd.DataFrame([{
+                "username": "admin",
+                "password": hash_password("admin123"),
+                "role": "Admin",
+                "actif": "OUI"
+            }])
+            ws.update([admin_initial.columns.values.tolist()] + admin_initial.astype(str).values.tolist())
+            return admin_initial
+
+        records = ws.get_all_records()
+        return pd.DataFrame(records)
+    except Exception as e:
+        st.error(f"Erreur lors du chargement des utilisateurs : {e}")
+        return pd.DataFrame(columns=USER_COLUMNS)
+
+def save_users(df_users):
+    try:
+        sh = get_spreadsheet()
+        try:
+            ws = sh.worksheet("Utilisateurs")
+        except gspread.WorksheetNotFound:
+            ws = sh.add_worksheet(title="Utilisateurs", rows=50, cols=10)
+        
+        ws.clear()
+        values = [df_users.columns.values.tolist()] + df_users.astype(str).values.tolist()
+        ws.update(values)
+        return True, "✅ Utilisateurs mis à jour avec succès !"
+    except Exception as e:
+        return False, f"❌ Erreur de mise à jour des utilisateurs : {e}"
+
 def get_sheet_names_gsheets():
     try:
         sh = get_spreadsheet()
-        return [ws.title for ws in sh.worksheets()]
+        return [ws.title for ws in sh.worksheets() if ws.title != "Utilisateurs"]
     except Exception as e:
         st.error(f"Erreur de connexion à Google Sheets : {e}")
         return ["Chantier Principal"]
@@ -82,8 +124,7 @@ def load_data_from_sheet(sheet_name):
         sh = get_spreadsheet()
         ws = sh.worksheet(sheet_name)
         records = ws.get_all_records()
-        df = pd.DataFrame(records)
-        return df
+        return pd.DataFrame(records)
     except Exception:
         return pd.DataFrame(columns=COLUMNS_TEMPLATE)
 
@@ -107,9 +148,8 @@ def save_data_to_sheet(df_to_save, sheet_name):
         return False, f"❌ Erreur lors de l'enregistrement dans Google Sheets : {e}"
 
 # ==========================================
-# 2. CONSTANTES ET FONCTIONS UTILITAIRES
+# 3. CONSTANTES ET FONCTIONS UTILITAIRES
 # ==========================================
-
 DOSSIER_CHANTIER = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
 COL_PARTIE = "PARTIE D'OUVRAGE"
 
@@ -120,82 +160,10 @@ COLUMNS_TEMPLATE = [
 ]
 
 LIAISONS = {
-    "ARASE DE PST": {
-        "procedure": "TER-PEX-05-00",
-        "pieces": "* Fiche de suivi de la PST\n* Fiche de réception topographique\n* PVs laboratoire"
-    },
-    "ARASE DE TERRASSEMENT": {
-        "procedure": "TER-PEX-03-00",
-        "pieces": "* Fiche de contrôle des déblais\n* Fiche de réception topographique\n* PVs laboratoire"
-    },
-    "ASSISE DE REMBLAIS PURGE": {
-        "procedure": "TER-PEX-04-00",
-        "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* Fiche d'identification de la purge\n* PVs laboratoire"
-    },
-    "ASSISE DE REMBLAIS": {
-        "procedure": "TER-PEX-04-00",
-        "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* PVs laboratoire"
-    },
-    "ASSISE DE REMBLAIS CDF": {
-        "procedure": "TER-PEX-04-00",
-        "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* PVs laboratoire"
-    },
-    "ASSISE DE REMBLAIS CONTIGUS": {
-        "procedure": "OVA-PEX-16-00",
-        "pieces": "* Fiche de suivi des remblais contigus\n* Fiche de contrôle des remblais contigus\n* PVs laboratoire\n* Fiche de réception topographique"
-    },
-    "ASSISE DE REMBLAI DE FOUILLE": {
-        "procedure": "OVA-PEX-04-00",
-        "pieces": "* Fiche de suivi et de contrôle des fouilles et remblaiement de fouilles\n* PVs laboratoire"
-    },
-    "ASSISE DE REMBLAIS RENFORCE": {
-        "procedure": "TER-PEX-13-00",
-        "pieces": "* PV Manifold\n* PVs laboratoire\n* Fiche de réception topographique\n* Fiche de réception assise remblai renforcé"
-    },
-    "ASSISE DRAINANTE": {
-        "procedure": "TER-PEX-13-00",
-        "pieces": "* Fiche de réception topographique\n* PVs laboratoire\n* Fiche de contrôle de l'assise drainante"
-    },
-    "COUCHE DE FORME": {
-        "procedure": "TER-PEX-09-00",
-        "pieces": "* Fiche de suivi et de contrôle de la CDF\n* Fiche de réception topographique\n* PVs laboratoire"
-    },
-    "DÉCAPAGE": {
-        "procedure": "TER-PEX-02-00",
-        "pieces": "* Fiche de suivi et de contrôle du décapage\n* Fiche des sections à décaper\n* Fiche de réception topographique"
-    },
-    "DEGAGEMENT D'EMPRISE": {
-        "procedure": "TER-PEX-01-00",
-        "pieces": "* Fiche de suivi et de contrôle du dégagement des emprises\n* Fiche de réception topographique\n* Constat dégagement d'emprise"
-    },
-    "REMBLAIS": {
-        "procedure": "TER-PEX-04-00",
-        "pieces": "* Fiche de suivi et de contrôle des remblais\n* PVs laboratoire"
-    },
-    "REMBLAIS CDF": {
-        "procedure": "TER-PEX-04-00",
-        "pieces": "* Fiche de suivi et de contrôle des remblais\n* PVs laboratoire"
-    },
-    "REMBLAIS CONTIGUS": {
-        "procedure": "OVA-PEX-16-00",
-        "pieces": "* Fiche de suivi des remblais contigus\n* Fiche de contrôle des remblais contigus\n* PVs laboratoire\n* Fiche de réception topographique"
-    },
-    "REMBLAIS DE FOUILLE": {
-        "procedure": "OVA-PEX-04-00",
-        "pieces": "* Fiche de suivi et de contrôle des fouilles et remblaiement de fouilles\n* PVs laboratoire"
-    },
-    "REMBLAIS DE FOUILLS CDF": {
-        "procedure": "OVA-PEX-04-00",
-        "pieces": "* Fiche de suivi et de contrôle des fouilles et remblaiement de fouilles\n* PVs laboratoire"
-    },
-    "REMBLAIS RENFORCE": {
-        "procedure": "TER-PEX-13-00",
-        "pieces": "* Fiche de suivi des remblais renforcé\n* Fiche de contrôle des armatures Geostrap\n* Fiche de réception de pose des ecailles\n* PVs laboratoire"
-    },
-    "REMBLAIS PST": {
-        "procedure": "TER-PEX-05-00",
-        "pieces": "* Fiche de suivi et de contrôle des remblais PST\n* PVs laboratoire"
-    }
+    "ARASE DE PST": {"procedure": "TER-PEX-05-00", "pieces": "* Fiche de suivi de la PST\n* Fiche de réception topographique\n* PVs laboratoire"},
+    "ARASE DE TERRASSEMENT": {"procedure": "TER-PEX-03-00", "pieces": "* Fiche de contrôle des déblais\n* Fiche de réception topographique\n* PVs laboratoire"},
+    "REMBLAIS": {"procedure": "TER-PEX-04-00", "pieces": "* Fiche de suivi et de contrôle des remblais\n* PVs laboratoire"},
+    "COUCHE DE FORME": {"procedure": "TER-PEX-09-00", "pieces": "* Fiche de suivi et de contrôle de la CDF\n* Fiche de réception topographique\n* PVs laboratoire"}
 }
 
 def text_to_richtext(text):
@@ -243,11 +211,9 @@ def get_col_val(row, *candidates):
     return ""
 
 def convertir_docx_vers_pdf_bytes(docx_path, temp_dir):
-    """Convertit un fichier DOCX en PDF via LibreOffice (prioritaire sur Linux) puis docx2pdf (Windows)"""
     base_name = os.path.splitext(os.path.basename(docx_path))[0]
     expected_pdf = os.path.join(temp_dir, f"{base_name}.pdf")
 
-    # 1. Tentative via LibreOffice (Incontournable sous Linux / Codespaces / Streamlit Cloud)
     try:
         cmd = f'soffice --headless --convert-to pdf "{docx_path}" --outdir "{temp_dir}"'
         subprocess.run(cmd, shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -257,7 +223,6 @@ def convertir_docx_vers_pdf_bytes(docx_path, temp_dir):
     except Exception:
         pass
 
-    # 2. Tentative via docx2pdf (Windows avec Microsoft Word)
     try:
         from docx2pdf import convert
         convert(docx_path, expected_pdf)
@@ -276,12 +241,9 @@ def generer_docx_et_pdf_bytes(chemin_modele, contexte):
         docx_temp_path = os.path.join(temp_dir, "temp.docx")
         doc.save(docx_temp_path)
         
-        with open(docx_temp_path, "rb") as f: 
-            docx_bytes = f.read()
-
+        with open(docx_temp_path, "rb") as f: docx_bytes = f.read()
         pdf_bytes = convertir_docx_vers_pdf_bytes(docx_temp_path, temp_dir)
-        if pdf_bytes is None: 
-            pdf_bytes = docx_bytes
+        if pdf_bytes is None: pdf_bytes = docx_bytes
 
         return docx_bytes, pdf_bytes
 
@@ -321,17 +283,11 @@ def generer_di_style_vba(chemin_modele, df_jour):
     return doc
 
 def generer_di_une_date(df_jour):
-    """Génère une Demande d'Intervention pour une seule date"""
     modele_di = None
     if os.path.exists(DOSSIER_CHANTIER):
         for file in os.listdir(DOSSIER_CHANTIER):
             if file.lower().endswith('.docx') and not file.startswith('~$'):
                 if 'di' in file.lower() or 'demande' in file.lower():
-                    modele_di = os.path.join(DOSSIER_CHANTIER, file)
-                    break
-        if not modele_di:
-            for file in os.listdir(DOSSIER_CHANTIER):
-                if file.lower().endswith('.docx') and not file.startswith('~$'):
                     modele_di = os.path.join(DOSSIER_CHANTIER, file)
                     break
 
@@ -346,11 +302,6 @@ def generer_di_une_date(df_jour):
                 doc = Document()
                 doc.add_heading("Demande d'Intervention (DI)", 0)
                 table = doc.add_table(rows=1, cols=4)
-                hdr_cells = table.rows[0].cells
-                hdr_cells[0].text = 'Date'
-                hdr_cells[1].text = 'Nature / Activité'
-                hdr_cells[2].text = 'Localisation'
-                hdr_cells[3].text = 'Essai / Contrôle'
                 for _, row in df_jour.iterrows():
                     row_cells = table.add_row().cells
                     row_cells[0].text = str(get_col_val(row, "DATE"))
@@ -362,11 +313,6 @@ def generer_di_une_date(df_jour):
             doc = Document()
             doc.add_heading("Demande d'Intervention (DI)", 0)
             table = doc.add_table(rows=1, cols=4)
-            hdr_cells = table.rows[0].cells
-            hdr_cells[0].text = 'Date'
-            hdr_cells[1].text = 'Nature / Activité'
-            hdr_cells[2].text = 'Localisation'
-            hdr_cells[3].text = 'Essai / Contrôle'
             for _, row in df_jour.iterrows():
                 row_cells = table.add_row().cells
                 row_cells[0].text = str(get_col_val(row, "DATE"))
@@ -375,64 +321,109 @@ def generer_di_une_date(df_jour):
                 row_cells[3].text = str(get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE"))
             doc.save(docx_temp_path)
 
-        with open(docx_temp_path, "rb") as f:
-            docx_bytes = f.read()
-
+        with open(docx_temp_path, "rb") as f: docx_bytes = f.read()
         pdf_bytes = convertir_docx_vers_pdf_bytes(docx_temp_path, temp_dir)
-        if pdf_bytes is None:
-            pdf_bytes = docx_bytes
+        if pdf_bytes is None: pdf_bytes = docx_bytes
 
         return docx_bytes, pdf_bytes
 
 def generer_pack_di_zip(df_filtered):
-    """Regroupe chaque date dans une DI distincte et les compresse en ZIP"""
     zip_buffer = io.BytesIO()
     dates_uniques = df_filtered["DATE"].unique()
-    
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
         for date_val in dates_uniques:
-            if not date_val or str(date_val).strip() == "" or str(date_val).lower() == "nan":
-                continue
-            
+            if not date_val or str(date_val).strip() == "" or str(date_val).lower() == "nan": continue
             df_jour = df_filtered[df_filtered["DATE"] == date_val]
             docx_b, pdf_b = generer_di_une_date(df_jour)
-            
             date_clean = str(date_val).replace('/', '-').replace('\\', '-')
-            nom_fichier_base = f"DI_{date_clean}"
-            
-            zip_file.writestr(f"{nom_fichier_base}.docx", docx_b)
-            zip_file.writestr(f"{nom_fichier_base}.pdf", pdf_b)
-            
+            zip_file.writestr(f"DI_{date_clean}.docx", docx_b)
+            zip_file.writestr(f"DI_{date_clean}.pdf", pdf_b)
     zip_buffer.seek(0)
     return zip_buffer, len(dates_uniques)
 
 # ==========================================
-# 3. BARRE LATÉRALE (SIDEBAR) & GESTION PROJETS
+# 4. GESTION DU SYSTÈME D'AUTHENTIFICATION
 # ==========================================
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
+    st.session_state["username"] = None
+    st.session_state["role"] = None
+
+def page_connexion():
+    st.markdown("""
+    <div style="max-width: 450px; margin: 80px auto; padding: 30px; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+        <h2 style="text-align: center; color: #0f172a; margin-bottom: 20px;">🔒 Connexion Suivi Chantier</h2>
+    """, unsafe_allow_html=True)
+    
+    with st.form("login_form"):
+        username_input = st.text_input("Nom d'utilisateur").strip()
+        password_input = st.text_input("Mot de passe", type="password").strip()
+        btn_submit = st.form_submit_button("Se Connecter", type="primary", use_container_width=True)
+
+        if btn_submit:
+            if not username_input or not password_input:
+                st.error("⚠️ Veuillez remplir tous les champs.")
+            else:
+                users_df = load_users()
+                hashed_input = hash_password(password_input)
+                
+                user_row = users_df[
+                    (users_df["username"].astype(str) == username_input) & 
+                    (users_df["password"].astype(str) == hashed_input)
+                ]
+
+                if not user_row.empty:
+                    info_user = user_row.iloc[0]
+                    if str(info_user.get("actif", "OUI")).upper() in ["OUI", "TRUE", "1"]:
+                        st.session_state["authenticated"] = True
+                        st.session_state["username"] = info_user["username"]
+                        st.session_state["role"] = info_user["role"]
+                        st.success("Connexion réussie !")
+                        st.rerun()
+                    else:
+                        st.error("🚫 Ce compte a été désactivé. Contactez l'administrateur.")
+                else:
+                    st.error("❌ Identifiants invalides.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+if not st.session_state["authenticated"]:
+    page_connexion()
+    st.stop()
+
+# ==========================================
+# 5. BARRE LATÉRALE & COMPTE CONNECTÉ
+# ==========================================
+st.sidebar.markdown(f"👤 Connecté en tant que : **{st.session_state['username']}**")
+st.sidebar.markdown(f"🛡️ Rôle : **{st.session_state['role']}**")
+
+if st.sidebar.button("🚪 Déconnexion", use_container_width=True):
+    st.session_state["authenticated"] = False
+    st.session_state["username"] = None
+    st.session_state["role"] = None
+    st.rerun()
+
+st.sidebar.markdown("---")
 st.sidebar.markdown("### 🌐 **Google Sheets Chantier**")
 
 chantiers_existants = get_sheet_names_gsheets()
 chantier_actif = st.sidebar.selectbox("📌 **Projet Actif :**", options=chantiers_existants)
 
-st.sidebar.markdown("---")
-
-with st.sidebar.expander("➕ **Créer / Ajouter un Nouveau Projet**", expanded=False):
-    nouveau_projet_nom = st.text_input("Nom du nouveau projet :", key="new_proj_input")
-    if st.button("✨ Créer le Projet", type="primary", key="btn_create_proj", use_container_width=True):
-        nom_clean = nouveau_projet_nom.strip()
-        if nom_clean:
-            if nom_clean in chantiers_existants:
-                st.sidebar.error("⚠️ Ce projet existe déjà !")
-            else:
-                df_vide = pd.DataFrame(columns=COLUMNS_TEMPLATE)
-                success, msg = save_data_to_sheet(df_vide, sheet_name=nom_clean)
-                if success:
-                    st.sidebar.success(f"✅ Projet '{nom_clean}' créé dans Google Sheets !")
-                    st.rerun()
+if st.session_state["role"] == "Admin":
+    with st.sidebar.expander("➕ **Créer un Nouveau Projet**", expanded=False):
+        nouveau_projet_nom = st.text_input("Nom du nouveau projet :", key="new_proj_input")
+        if st.button("✨ Créer le Projet", type="primary", key="btn_create_proj", use_container_width=True):
+            nom_clean = nouveau_projet_nom.strip()
+            if nom_clean:
+                if nom_clean in chantiers_existants:
+                    st.sidebar.error("⚠️ Ce projet existe déjà !")
                 else:
-                    st.sidebar.error(msg)
-        else:
-            st.sidebar.warning("⚠️ Veuillez entrer un nom valide.")
+                    df_vide = pd.DataFrame(columns=COLUMNS_TEMPLATE)
+                    success, msg = save_data_to_sheet(df_vide, sheet_name=nom_clean)
+                    if success:
+                        st.sidebar.success(f"✅ Projet '{nom_clean}' créé !")
+                        st.rerun()
+                    else:
+                        st.sidebar.error(msg)
 
 df = load_data_from_sheet(chantier_actif)
 if "DATE" in df.columns:
@@ -440,12 +431,9 @@ if "DATE" in df.columns:
     df = df.sort_values(by="DATE", ascending=True)
     df["DATE"] = df["DATE"].dt.strftime('%d/%m/%Y').fillna("")
 
-st.sidebar.success(f"🟢 Connecté à Google Sheets ({len(df)} lignes)")
-
 # ==========================================
-# 4. INTERFACE PRINCIPALE
+# 6. APPLICATION ET NAVIGATION PAR ONGLET
 # ==========================================
-
 st.markdown(f"""
 <div class="gc-header">
     <h1>🛣️ Plateforme Génie Civil & Travaux Routiers</h1>
@@ -453,11 +441,17 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-tab1, tab2, tab3 = st.tabs([
+liste_onglets = [
     "📝 **Nouvelle Saisie Chantier**", 
     "📊 **Registre & Génération Individuelle**", 
-    "📅 **Demandes d'Intervention (DI) Séparées par Date**"
-])
+    "📅 **Demandes d'Intervention (DI)**"
+]
+
+if st.session_state["role"] == "Admin":
+    liste_onglets.append("👥 **Gestion des Utilisateurs**")
+
+tabs = st.tabs(liste_onglets)
+tab1, tab2, tab3 = tabs[0], tabs[1], tabs[2]
 
 # -------------------------------------------------------------
 # TAB 1 : SAISIE
@@ -475,24 +469,13 @@ with tab1:
             parties_existantes = sorted(list(set([str(p).strip() for p in df[COL_PARTIE].unique() if str(p).strip() and str(p).lower() != 'nan'])))
             
         options_partie = parties_existantes + ["➕ Autre / Nouvelle partie..."]
-        
         partie_choisie = st.selectbox("🧱 Partie d'ouvrage", options=options_partie)
-        
-        if partie_choisie == "➕ Autre / Nouvelle partie...":
-            partie_ouvrage = st.text_input("✍️ Saisir la nouvelle Partie d'ouvrage :", placeholder="Ex: CULEE C0...")
-        else:
-            partie_ouvrage = partie_choisie
-
+        partie_ouvrage = st.text_input("✍️ Saisir la nouvelle Partie d'ouvrage :") if partie_choisie == "➕ Autre / Nouvelle partie..." else partie_choisie
         situation = st.text_input("📍 Situation / PK", placeholder="Ex: PK 1+120 AU PK 1+220")
+        
     with col2:
         activite = st.text_area("🚜 Activité réalisée", height=80)
-        
-        essai = st.selectbox("🧪 Essai / Contrôle réalisé", options=[
-            "Aucun", "TENEUR EN EAU", "CAMPACITÉ", "ESSAI À LA PLAQUE",
-            "ESSAI À LA PLAQUE + CAMPACITÉ", "PRELEVEMENT APRES COMPACTAGE",
-            "PRELEVEMENT AVANT COMPACTAGE", "IDENTIFICATION DES MATERIAUX", "PRELEVEMENT"
-        ])
-        
+        essai = st.selectbox("🧪 Essai / Contrôle réalisé", options=["Aucun", "TENEUR EN EAU", "CAMPACITÉ", "ESSAI À LA PLAQUE", "ESSAI À LA PLAQUE + CAMPACITÉ", "PRELEVEMENT APRES COMPACTAGE", "PRELEVEMENT AVANT COMPACTAGE", "IDENTIFICATION DES MATERIAUX", "PRELEVEMENT"])
         procedure = st.text_input("📑 Référence procédure", value=info_liaison["procedure"])
         pieces_jointes = st.text_area("📎 Pièces jointes", value=info_liaison["pieces"], height=100)
 
@@ -508,7 +491,6 @@ with tab1:
             "PIÈCES JOINTES": pieces_jointes
         }
         df_updated = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
-        
         success, msg = save_data_to_sheet(df_updated, sheet_name=chantier_actif)
         if success:
             st.success(msg)
@@ -520,171 +502,115 @@ with tab1:
 # TAB 2 : REGISTRE
 # -------------------------------------------------------------
 with tab2:
-    st.markdown("##### 🔍 **Registre des Travaux (Google Sheets)**")
-
-    with st.expander("🎯 **Filtres de Recherche & Tri**", expanded=True):
-        col_f1, col_f2, col_f3, col_f4 = st.columns(4)
-        
-        with col_f1:
-            natures_dispo = ["Toutes"] + list(sorted([str(n) for n in df["TITRE DE LA NATURE DES TRAVAUX"].unique() if str(n).strip() and str(n).lower() != "nan"])) if "TITRE DE LA NATURE DES TRAVAUX" in df.columns else ["Toutes"]
-            filtre_nature = st.selectbox("📌 Nature :", options=natures_dispo)
-        
-        with col_f2:
-            dates_dispo = ["Toutes"] + sorted([str(d).strip() for d in df["DATE"].unique() if str(d).strip() and str(d).lower() != "nan"]) if "DATE" in df.columns else ["Toutes"]
-            filtre_date = st.selectbox("🗓️ Date :", options=dates_dispo)
-
-        with col_f3:
-            parties_dispo = ["Toutes"] + list(sorted([str(p).strip() for p in df[COL_PARTIE].unique() if str(p).strip() and str(p).lower() != "nan"])) if COL_PARTIE in df.columns else ["Toutes"]
-            filtre_partie = st.selectbox("🧱 Partie d'ouvrage :", options=parties_dispo)
-            
-        with col_f4:
-            recherche_texte = st.text_input("🔍 Recherche globale :", placeholder="PK, Activité...")
-
-    df_filtre = df.copy()
-
-    if filtre_nature != "Toutes" and "TITRE DE LA NATURE DES TRAVAUX" in df_filtre.columns:
-        df_filtre = df_filtre[df_filtre["TITRE DE LA NATURE DES TRAVAUX"].astype(str).str.strip() == filtre_nature]
-
-    if filtre_date != "Toutes" and "DATE" in df_filtre.columns:
-        df_filtre = df_filtre[df_filtre["DATE"].astype(str).str.strip() == filtre_date]
-
-    if filtre_partie != "Toutes" and COL_PARTIE in df_filtre.columns:
-        df_filtre = df_filtre[df_filtre[COL_PARTIE].astype(str).str.strip() == filtre_partie]
-
-    if recherche_texte.strip():
-        mots = recherche_texte.strip().lower()
-        mask = (
-            df_filtre[COL_PARTIE].astype(str).str.lower().str.contains(mots) |
-            df_filtre["SITUATION"].astype(str).str.lower().str.contains(mots) |
-            df_filtre["ACTIVITÉ RÉALISÉE"].astype(str).str.lower().str.contains(mots)
-        )
-        df_filtre = df_filtre[mask]
-
-    st.caption(f"📊 Résultats affichés : **{len(df_filtre)}** / {len(df)} fiches")
-
-    df_editor = df_filtre.copy()
+    st.markdown("##### 🔍 **Registre des Travaux**")
+    df_editor = df.copy()
     if "Imprimer" not in df_editor.columns:
         df_editor.insert(0, "Imprimer", False)
 
     edited_df = st.data_editor(df_editor, num_rows="dynamic", height=400, use_container_width=True)
 
-    st.markdown("---")
-    col_act1, col_act2 = st.columns(2)
-
-    with col_act1:
-        if st.button("💾 Enregistrer les modifications dans Google Sheets", type="secondary", use_container_width=True):
-            df_sauvegarde = df.copy()
-            edited_clean = edited_df.drop(columns=["Imprimer"], errors="ignore")
-            df_sauvegarde.loc[edited_clean.index] = edited_clean
-
-            success, msg = save_data_to_sheet(df_sauvegarde, sheet_name=chantier_actif)
-            if success:
-                st.success(msg)
-                st.rerun()
-            else:
-                st.error(msg)
-
-    with col_act2:
-        lignes_selectionnees = edited_df[edited_df["Imprimer"] == True]
-        nb_selections = len(lignes_selectionnees)
-        
-        if st.button(f"📦 Générer les Fiches Sélectionnées ({nb_selections})", type="primary", use_container_width=True):
-            if nb_selections == 0:
-                st.warning("⚠️ Cochez au moins une case 'Imprimer' dans le tableau.")
-            else:
-                zip_buffer = io.BytesIO()
-                fichiers_crees = 0
-                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                    for idx, row in lignes_selectionnees.iterrows():
-                        nom_modele = get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE")
-                        chemin_modele = trouver_modele_word(nom_modele)
-                        if chemin_modele:
-                            contexte = {
-                                'NATURE': get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE"),
-                                'REF': get_col_val(row, "RÉFÉRENCE DE PROCÉDURE", "REF"),
-                                'PARTIE': get_col_val(row, "PARTIE D'OUVRAGE", "PARTIE D meOUVRAGE", "PARTIE"),
-                                'SITUATION': get_col_val(row, "SITUATION", "PK"),
-                                'PIECES': text_to_richtext(get_col_val(row, "PIÈCES JOINTES", "PIECES")),
-                                'DATE': get_col_val(row, "DATE"),
-                                'ACTIVITE': text_to_richtext(get_col_val(row, "ACTIVITÉ RÉALISÉE", "ACTIVITE")),
-                                'ESSAI': get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI")
-                            }
-                            docx_b, pdf_b = generer_docx_et_pdf_bytes(chemin_modele, contexte)
-                            nom_base = construire_nom_pdf(row).replace(".pdf", "")
-                            zip_file.writestr(f"{nom_base}.docx", docx_b)
-                            zip_file.writestr(f"{nom_base}.pdf", pdf_b)
-                            fichiers_crees += 1
-
-                if fichiers_crees > 0:
-                    zip_buffer.seek(0)
-                    st.download_button(
-                        label="📦 Télécharger Pack ZIP",
-                        data=zip_buffer,
-                        file_name="Fiches_Chantier.zip",
-                        mime="application/zip",
-                        use_container_width=True
-                    )
+    if st.button("💾 Enregistrer les modifications", type="secondary"):
+        edited_clean = edited_df.drop(columns=["Imprimer"], errors="ignore")
+        success, msg = save_data_to_sheet(edited_clean, sheet_name=chantier_actif)
+        if success:
+            st.success(msg)
+            st.rerun()
+        else:
+            st.error(msg)
 
 # -------------------------------------------------------------
-# TAB 3 : DEMANDES D'INTERVENTION MULTI-DATES (SÉPARÉES)
+# TAB 3 : DI
 # -------------------------------------------------------------
 with tab3:
-    st.subheader("📅 Génération des Demandes d'Intervention (DI) - 1 DI par Date")
-
-    date_range = st.date_input(
-        "📅 Sélectionner une date ou une période :",
-        value=(),
-        format="DD/MM/YYYY",
-        key="calendar_di_tab3"
-    )
-
+    st.subheader("📅 Génération des DI par Date")
+    date_range = st.date_input("📅 Sélectionner une date ou période :", value=(), format="DD/MM/YYYY")
     if 'df' in locals() and df is not None and not df.empty:
         df_temp = df.copy()
-        if 'DATE' in df_temp.columns:
-            df_temp['DATE_DT'] = pd.to_datetime(df_temp['DATE'], dayfirst=True, errors='coerce').dt.date
-            df_filtered = pd.DataFrame()
+        df_temp['DATE_DT'] = pd.to_datetime(df_temp['DATE'], dayfirst=True, errors='coerce').dt.date
+        df_filtered = pd.DataFrame()
+        if len(date_range) == 2:
+            df_filtered = df_temp[(df_temp['DATE_DT'] >= date_range[0]) & (df_temp['DATE_DT'] <= date_range[1])]
+        elif len(date_range) == 1:
+            df_filtered = df_temp[df_temp['DATE_DT'] == date_range[0]]
 
-            if len(date_range) == 2:
-                start_date, end_date = date_range
-                mask = (df_temp['DATE_DT'] >= start_date) & (df_temp['DATE_DT'] <= end_date)
-                df_filtered = df_temp[mask]
-            elif len(date_range) == 1:
-                single_date = date_range[0]
-                mask = (df_temp['DATE_DT'] == single_date)
-                df_filtered = df_temp[mask]
+        if not df_filtered.empty:
+            st.dataframe(df_filtered.drop(columns=['DATE_DT'], errors='ignore'), use_container_width=True)
+            if st.button("📦 Générer Pack DI", type="primary"):
+                zip_data, count_dates = generer_pack_di_zip(df_filtered)
+                st.download_button(label="⬇️ Télécharger Le Pack ZIP", data=zip_data, file_name="Pack_DI.zip", mime="application/zip")
 
-            if not df_filtered.empty:
-                dates_detectees = df_filtered['DATE'].unique()
-                st.success(f"✅ {len(df_filtered)} travail(aux) trouvé(s) réparti(s) sur {len(dates_detectees)} jour(s).")
-                
-                st.dataframe(df_filtered.drop(columns=['DATE_DT'], errors='ignore'), use_container_width=True)
+# -------------------------------------------------------------
+# TAB 4 : GESTION DES UTILISATEURS (ADMIN UNIQUEMENT)
+# -------------------------------------------------------------
+if st.session_state["role"] == "Admin":
+    tab_admin = tabs[3]
+    with tab_admin:
+        st.markdown("##### 👥 **Administration des Accès et Utilisateurs**")
+        df_users = load_users()
 
-                st.markdown("---")
-                
-                # Si une seule date est sélectionnée
-                if len(dates_detectees) == 1:
-                    date_nom = str(dates_detectees[0]).replace('/', '-')
-                    if st.button(f"📄 Générer la DI du {dates_detectees[0]} (PDF/Word)", type="primary"):
-                        docx_b, pdf_b = generer_di_une_date(df_filtered)
-                        st.download_button(
-                            label=f"⬇️ Télécharger DI ({date_nom}.pdf)",
-                            data=pdf_b,
-                            file_name=f"DI_{date_nom}.pdf",
-                            mime="application/pdf",
-                            use_container_width=True
-                        )
-                # Si plusieurs dates sont sélectionnées
+        col_u1, col_u2 = st.columns([1, 2])
+
+        with col_u1:
+            st.markdown("**➕ Ajouter un utilisateur**")
+            with st.form("form_add_user"):
+                new_username = st.text_input("Nom d'utilisateur").strip()
+                new_password = st.text_input("Mot de passe", type="password").strip()
+                new_role = st.selectbox("Rôle", options=["Utilisateur", "Admin"])
+                new_status = st.selectbox("Compte Actif", options=["OUI", "NON"])
+                btn_add_user = st.form_submit_button("Ajouter Utilisateur", type="primary")
+
+                if btn_add_user:
+                    if not new_username or not new_password:
+                        st.error("⚠️ Les champs nom et mot de passe sont obligatoires.")
+                    elif new_username in df_users["username"].astype(str).values:
+                        st.error("⚠️ Cet utilisateur existe déjà.")
+                    else:
+                        new_row = {
+                            "username": new_username,
+                            "password": hash_password(new_password),
+                            "role": new_role,
+                            "actif": new_status
+                        }
+                        df_users_updated = pd.concat([df_users, pd.DataFrame([new_row])], ignore_index=True)
+                        ok, msg = save_users(df_users_updated)
+                        if ok:
+                            st.success(f"Utilisateur {new_username} créé !")
+                            st.rerun()
+                        else:
+                            st.error(msg)
+
+        with col_u2:
+            st.markdown("**📜 Liste des comptes enregistrés**")
+            users_edited = st.data_editor(
+                df_users,
+                column_config={
+                    "password": st.column_config.TextColumn("Mot de passe (Haché SHA-256)", disabled=True),
+                    "role": st.column_config.SelectboxColumn("Rôle", options=["Admin", "Utilisateur"], required=True),
+                    "actif": st.column_config.SelectboxColumn("Actif", options=["OUI", "NON"], required=True)
+                },
+                num_rows="dynamic",
+                use_container_width=True
+            )
+
+            if st.button("💾 Enregistrer les modifications utilisateurs", type="secondary"):
+                ok, msg = save_users(users_edited)
+                if ok:
+                    st.success("Accès modifiés enregistrés avec succès !")
+                    st.rerun()
                 else:
-                    if st.button("📦 Générer Pack DI (1 Fichier PDF/Word par Date)", type="primary"):
-                        zip_data, count_dates = generer_pack_di_zip(df_filtered)
-                        st.download_button(
-                            label=f"⬇️ Télécharger Le Pack ZIP ({count_dates} Fichiers DI)",
-                            data=zip_data,
-                            file_name="Pack_Demandes_Intervention_Par_Date.zip",
-                            mime="application/zip",
-                            use_container_width=True
-                        )
-            elif len(date_range) > 0:
-                st.warning("⚠️ Aucune donnée trouvée pour cette période.")
-            else:
-                st.info("💡 Veuillez choisir une date ou une période dans le calendrier ci-dessus.")
+                    st.error(msg)
+
+            with st.expander("🔑 **Réinitialiser le mot de passe d'un utilisateur**"):
+                user_to_reset = st.selectbox("Choisir le compte :", options=df_users["username"].tolist())
+                reset_pass = st.text_input("Nouveau mot de passe :", type="password", key="reset_pass_val")
+                if st.button("🔒 Mettre à jour le mot de passe"):
+                    if reset_pass.strip():
+                        df_users.loc[df_users["username"] == user_to_reset, "password"] = hash_password(reset_pass.strip())
+                        ok, msg = save_users(df_users)
+                        if ok:
+                            st.success(f"Mot de passe de {user_to_reset} mis à jour !")
+                            st.rerun()
+                        else:
+                            st.error(msg)
+                    else:
+                        st.warning("⚠️ Veuillez entrer un mot de passe valide.")

@@ -149,7 +149,10 @@ def load_data_from_sheet(sheet_name):
         sh = get_spreadsheet()
         ws = sh.worksheet(sheet_name)
         records = ws.get_all_records()
-        return pd.DataFrame(records)
+        df_loaded = pd.DataFrame(records)
+        if "CRÉÉ PAR" not in df_loaded.columns and not df_loaded.empty:
+            df_loaded["CRÉÉ PAR"] = ""
+        return df_loaded
     except Exception:
         return pd.DataFrame(columns=COLUMNS_TEMPLATE)
 
@@ -181,7 +184,7 @@ COL_PARTIE = "PARTIE D'OUVRAGE"
 COLUMNS_TEMPLATE = [
     "DATE", "TITRE DE LA NATURE DES TRAVAUX", COL_PARTIE, 
     "SITUATION", "ACTIVITÉ RÉALISÉE", "ÉSSAI/ CONTRÔLE RÉALISÉE", 
-    "RÉFÉRENCE DE PROCÉDURE", "PIÈCES JOINTES"
+    "RÉFÉRENCE DE PROCÉDURE", "PIÈCES JOINTES", "CRÉÉ PAR"
 ]
 
 LIAISONS = {
@@ -244,7 +247,6 @@ def convertir_docx_vers_pdf_bytes(docx_path, temp_dir):
     base_name = os.path.splitext(os.path.basename(docx_path))[0]
     expected_pdf = os.path.join(temp_dir, f"{base_name}.pdf")
 
-    # Priorité 1 : LibreOffice (Linux / Streamlit Cloud / Codespaces)
     try:
         cmd = f'soffice --headless --convert-to pdf "{docx_path}" --outdir "{temp_dir}"'
         subprocess.run(cmd, shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -254,7 +256,6 @@ def convertir_docx_vers_pdf_bytes(docx_path, temp_dir):
     except Exception:
         pass
 
-    # Priorité 2 : docx2pdf (Windows local)
     try:
         from docx2pdf import convert
         convert(docx_path, expected_pdf)
@@ -520,7 +521,8 @@ with tab1:
             "ACTIVITÉ RÉALISÉE": activite,
             "ÉSSAI/ CONTRÔLE RÉALISÉE": "" if essai == "Aucun" else essai,
             "RÉFÉRENCE DE PROCÉDURE": procedure,
-            "PIÈCES JOINTES": pieces_jointes
+            "PIÈCES JOINTES": pieces_jointes,
+            "CRÉÉ PAR": st.session_state["username"]
         }
         df_updated = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
         success, msg = save_data_to_sheet(df_updated, sheet_name=chantier_actif)
@@ -539,7 +541,15 @@ with tab2:
     if "Imprimer" not in df_editor.columns:
         df_editor.insert(0, "Imprimer", False)
 
-    edited_df = st.data_editor(df_editor, num_rows="dynamic", height=400, use_container_width=True)
+    edited_df = st.data_editor(
+        df_editor, 
+        column_config={
+            "CRÉÉ PAR": st.column_config.TextColumn("Créé par", disabled=True)
+        },
+        num_rows="dynamic", 
+        height=400, 
+        use_container_width=True
+    )
 
     col_act1, col_act2 = st.columns(2)
     with col_act1:
@@ -575,7 +585,8 @@ with tab2:
                                 'PIECES': text_to_richtext(get_col_val(row, "PIÈCES JOINTES", "PIECES")),
                                 'DATE': get_col_val(row, "DATE"),
                                 'ACTIVITE': text_to_richtext(get_col_val(row, "ACTIVITÉ RÉALISÉE", "ACTIVITE")),
-                                'ESSAI': get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI")
+                                'ESSAI': get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI"),
+                                'AUTEUR': get_col_val(row, "CRÉÉ PAR", "AUTEUR")
                             }
                             docx_b, pdf_b = generer_docx_et_pdf_bytes(chemin_modele, contexte)
                             nom_base = construire_nom_pdf(row).replace(".pdf", "")

@@ -11,6 +11,8 @@ import tempfile
 import hashlib
 import gspread
 from google.oauth2.service_account import Credentials
+
+# Bibliothèques Word
 from docx import Document
 from docxtpl import DocxTemplate, RichText
 
@@ -23,25 +25,48 @@ st.set_page_config(
     layout="wide"
 )
 
+# Application du CSS personnalisé + Image de fond Pinterest
 st.markdown("""
 <style>
-    .stApp { background-color: #f8fafc; }
+    /* Image d'arrière-plan avec voile sombre pour la lisibilité */
+    .stApp {
+        background-image: linear-gradient(rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.82)), 
+                          url("https://i.pinimg.com/736x/3d/6b/f7/3d6bf78abc63f1c9b000d4bc5fbe7fa3.jpg");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }
+
+    [data-testid="stHeader"] { background-color: rgba(0, 0, 0, 0); }
+
     .gc-header {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
         color: #ffffff;
         padding: 22px 28px;
         border-radius: 12px;
         border-left: 8px solid #ff6b00;
-        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.08);
+        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.25);
         margin-bottom: 25px;
     }
     .gc-header h1 { color: #ffffff !important; font-size: 26px !important; font-weight: 800 !important; margin: 0 !important; }
     .gc-header p { color: #94a3b8; margin: 6px 0 0 0; font-size: 14px; }
+    
     .stButton > button[kind="primary"] {
-        background-color: #ff6b00 !important; color: #ffffff !important; border: none !important; border-radius: 8px !important; font-weight: 700 !important;
+        background-color: #ff6b00 !important; 
+        color: #ffffff !important; 
+        border: none !important; 
+        border-radius: 8px !important; 
+        font-weight: 700 !important;
     }
-    section[data-testid="stSidebar"] { background-color: #0f172a !important; color: #ffffff !important; }
-    section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] .stMarkdown h1 { color: #f1f5f9 !important; }
+    
+    section[data-testid="stSidebar"] { 
+        background-color: rgba(15, 23, 42, 0.95) !important; 
+        color: #ffffff !important; 
+    }
+    section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] .stMarkdown h1 { 
+        color: #f1f5f9 !important; 
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -52,7 +77,7 @@ def hash_password(password):
     return hashlib.sha256(str(password).encode('utf-8')).hexdigest()
 
 # ==========================================
-# 2. CONNEXION A GOOGLE SHEETS & UTILISATEURS
+# 2. CONNEXION A GOOGLE SHEETS
 # ==========================================
 @st.cache_resource
 def get_gsheets_client():
@@ -74,7 +99,7 @@ def get_spreadsheet():
 USER_COLUMNS = ["username", "password", "role", "actif"]
 
 def load_users():
-    """Charge les utilisateurs depuis l'onglet 'Utilisateurs' ou crée le compte admin par défaut."""
+    """Charge les utilisateurs depuis l'onglet 'Utilisateurs' ou initialise le compte admin."""
     try:
         sh = get_spreadsheet()
         try:
@@ -148,7 +173,7 @@ def save_data_to_sheet(df_to_save, sheet_name):
         return False, f"❌ Erreur lors de l'enregistrement dans Google Sheets : {e}"
 
 # ==========================================
-# 3. CONSTANTES ET FONCTIONS UTILITAIRES
+# 3. CONSTANTES ET FONCTIONS TRAITEMENT
 # ==========================================
 DOSSIER_CHANTIER = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
 COL_PARTIE = "PARTIE D'OUVRAGE"
@@ -162,8 +187,13 @@ COLUMNS_TEMPLATE = [
 LIAISONS = {
     "ARASE DE PST": {"procedure": "TER-PEX-05-00", "pieces": "* Fiche de suivi de la PST\n* Fiche de réception topographique\n* PVs laboratoire"},
     "ARASE DE TERRASSEMENT": {"procedure": "TER-PEX-03-00", "pieces": "* Fiche de contrôle des déblais\n* Fiche de réception topographique\n* PVs laboratoire"},
+    "ASSISE DE REMBLAIS PURGE": {"procedure": "TER-PEX-04-00", "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* Fiche d'identification de la purge\n* PVs laboratoire"},
+    "ASSISE DE REMBLAIS": {"procedure": "TER-PEX-04-00", "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* PVs laboratoire"},
+    "COUCHE DE FORME": {"procedure": "TER-PEX-09-00", "pieces": "* Fiche de suivi et de contrôle de la CDF\n* Fiche de réception topographique\n* PVs laboratoire"},
+    "DÉCAPAGE": {"procedure": "TER-PEX-02-00", "pieces": "* Fiche de suivi et de contrôle du décapage\n* Fiche des sections à décaper\n* Fiche de réception topographique"},
+    "DEGAGEMENT D'EMPRISE": {"procedure": "TER-PEX-01-00", "pieces": "* Fiche de suivi et de contrôle du dégagement des emprises\n* Fiche de réception topographique\n* Constat dégagement d'emprise"},
     "REMBLAIS": {"procedure": "TER-PEX-04-00", "pieces": "* Fiche de suivi et de contrôle des remblais\n* PVs laboratoire"},
-    "COUCHE DE FORME": {"procedure": "TER-PEX-09-00", "pieces": "* Fiche de suivi et de contrôle de la CDF\n* Fiche de réception topographique\n* PVs laboratoire"}
+    "REMBLAIS PST": {"procedure": "TER-PEX-05-00", "pieces": "* Fiche de suivi et de contrôle des remblais PST\n* PVs laboratoire"}
 }
 
 def text_to_richtext(text):
@@ -214,6 +244,7 @@ def convertir_docx_vers_pdf_bytes(docx_path, temp_dir):
     base_name = os.path.splitext(os.path.basename(docx_path))[0]
     expected_pdf = os.path.join(temp_dir, f"{base_name}.pdf")
 
+    # Priorité 1 : LibreOffice (Linux / Streamlit Cloud / Codespaces)
     try:
         cmd = f'soffice --headless --convert-to pdf "{docx_path}" --outdir "{temp_dir}"'
         subprocess.run(cmd, shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -223,6 +254,7 @@ def convertir_docx_vers_pdf_bytes(docx_path, temp_dir):
     except Exception:
         pass
 
+    # Priorité 2 : docx2pdf (Windows local)
     try:
         from docx2pdf import convert
         convert(docx_path, expected_pdf)
@@ -342,7 +374,7 @@ def generer_pack_di_zip(df_filtered):
     return zip_buffer, len(dates_uniques)
 
 # ==========================================
-# 4. GESTION DU SYSTÈME D'AUTHENTIFICATION
+# 4. MODULE D'AUTHENTIFICATION
 # ==========================================
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
@@ -351,8 +383,8 @@ if "authenticated" not in st.session_state:
 
 def page_connexion():
     st.markdown("""
-    <div style="max-width: 450px; margin: 80px auto; padding: 30px; background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-        <h2 style="text-align: center; color: #0f172a; margin-bottom: 20px;">🔒 Connexion Suivi Chantier</h2>
+    <div style="max-width: 450px; margin: 80px auto; padding: 30px; background: rgba(15, 23, 42, 0.9); border-radius: 12px; border: 1px solid #334155; box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+        <h2 style="text-align: center; color: #ffffff; margin-bottom: 20px;">🔒 Connexion Suivi Chantier</h2>
     """, unsafe_allow_html=True)
     
     with st.form("login_form"):
@@ -381,7 +413,7 @@ def page_connexion():
                         st.success("Connexion réussie !")
                         st.rerun()
                     else:
-                        st.error("🚫 Ce compte a été désactivé. Contactez l'administrateur.")
+                        st.error("🚫 Ce compte a été désactivé.")
                 else:
                     st.error("❌ Identifiants invalides.")
     st.markdown("</div>", unsafe_allow_html=True)
@@ -391,9 +423,9 @@ if not st.session_state["authenticated"]:
     st.stop()
 
 # ==========================================
-# 5. BARRE LATÉRALE & COMPTE CONNECTÉ
+# 5. BARRE LATÉRALE ET PROJETS
 # ==========================================
-st.sidebar.markdown(f"👤 Connecté en tant que : **{st.session_state['username']}**")
+st.sidebar.markdown(f"👤 Connecté : **{st.session_state['username']}**")
 st.sidebar.markdown(f"🛡️ Rôle : **{st.session_state['role']}**")
 
 if st.sidebar.button("🚪 Déconnexion", use_container_width=True):
@@ -432,12 +464,12 @@ if "DATE" in df.columns:
     df["DATE"] = df["DATE"].dt.strftime('%d/%m/%Y').fillna("")
 
 # ==========================================
-# 6. APPLICATION ET NAVIGATION PAR ONGLET
+# 6. INTERFACE ET NAVIGATION DES ONGLETS
 # ==========================================
 st.markdown(f"""
 <div class="gc-header">
     <h1>🛣️ Plateforme Génie Civil & Travaux Routiers</h1>
-    <p>Projet Actif (Google Sheets) : <b>{chantier_actif}</b></p>
+    <p>Projet Actif : <b>{chantier_actif}</b></p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -454,7 +486,7 @@ tabs = st.tabs(liste_onglets)
 tab1, tab2, tab3 = tabs[0], tabs[1], tabs[2]
 
 # -------------------------------------------------------------
-# TAB 1 : SAISIE
+# TAB 1 : SAISIE DE FICHE
 # -------------------------------------------------------------
 with tab1:
     st.markdown("##### 👷 **Ajouter une nouvelle fiche de contrôle**")
@@ -499,7 +531,7 @@ with tab1:
             st.error(msg)
 
 # -------------------------------------------------------------
-# TAB 2 : REGISTRE
+# TAB 2 : REGISTRE DE CHANTIER
 # -------------------------------------------------------------
 with tab2:
     st.markdown("##### 🔍 **Registre des Travaux**")
@@ -509,20 +541,63 @@ with tab2:
 
     edited_df = st.data_editor(df_editor, num_rows="dynamic", height=400, use_container_width=True)
 
-    if st.button("💾 Enregistrer les modifications", type="secondary"):
-        edited_clean = edited_df.drop(columns=["Imprimer"], errors="ignore")
-        success, msg = save_data_to_sheet(edited_clean, sheet_name=chantier_actif)
-        if success:
-            st.success(msg)
-            st.rerun()
-        else:
-            st.error(msg)
+    col_act1, col_act2 = st.columns(2)
+    with col_act1:
+        if st.button("💾 Enregistrer les modifications", type="secondary", use_container_width=True):
+            edited_clean = edited_df.drop(columns=["Imprimer"], errors="ignore")
+            success, msg = save_data_to_sheet(edited_clean, sheet_name=chantier_actif)
+            if success:
+                st.success(msg)
+                st.rerun()
+            else:
+                st.error(msg)
+
+    with col_act2:
+        lignes_selectionnees = edited_df[edited_df["Imprimer"] == True]
+        nb_selections = len(lignes_selectionnees)
+        
+        if st.button(f"📦 Générer les Fiches Sélectionnées ({nb_selections})", type="primary", use_container_width=True):
+            if nb_selections == 0:
+                st.warning("⚠️ Cochez au moins une case 'Imprimer' dans le tableau.")
+            else:
+                zip_buffer = io.BytesIO()
+                fichiers_crees = 0
+                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                    for idx, row in lignes_selectionnees.iterrows():
+                        nom_modele = get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE")
+                        chemin_modele = trouver_modele_word(nom_modele)
+                        if chemin_modele:
+                            contexte = {
+                                'NATURE': get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE"),
+                                'REF': get_col_val(row, "RÉFÉRENCE DE PROCÉDURE", "REF"),
+                                'PARTIE': get_col_val(row, "PARTIE D'OUVRAGE", "PARTIE D meOUVRAGE", "PARTIE"),
+                                'SITUATION': get_col_val(row, "SITUATION", "PK"),
+                                'PIECES': text_to_richtext(get_col_val(row, "PIÈCES JOINTES", "PIECES")),
+                                'DATE': get_col_val(row, "DATE"),
+                                'ACTIVITE': text_to_richtext(get_col_val(row, "ACTIVITÉ RÉALISÉE", "ACTIVITE")),
+                                'ESSAI': get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI")
+                            }
+                            docx_b, pdf_b = generer_docx_et_pdf_bytes(chemin_modele, contexte)
+                            nom_base = construire_nom_pdf(row).replace(".pdf", "")
+                            zip_file.writestr(f"{nom_base}.docx", docx_b)
+                            zip_file.writestr(f"{nom_base}.pdf", pdf_b)
+                            fichiers_crees += 1
+
+                if fichiers_crees > 0:
+                    zip_buffer.seek(0)
+                    st.download_button(
+                        label="📦 Télécharger Pack ZIP",
+                        data=zip_buffer,
+                        file_name="Fiches_Chantier.zip",
+                        mime="application/zip",
+                        use_container_width=True
+                    )
 
 # -------------------------------------------------------------
-# TAB 3 : DI
+# TAB 3 : DEMANDES D'INTERVENTION
 # -------------------------------------------------------------
 with tab3:
-    st.subheader("📅 Génération des DI par Date")
+    st.subheader("📅 Génération des Demandes d'Intervention par Date")
     date_range = st.date_input("📅 Sélectionner une date ou période :", value=(), format="DD/MM/YYYY")
     if 'df' in locals() and df is not None and not df.empty:
         df_temp = df.copy()
@@ -537,21 +612,21 @@ with tab3:
             st.dataframe(df_filtered.drop(columns=['DATE_DT'], errors='ignore'), use_container_width=True)
             if st.button("📦 Générer Pack DI", type="primary"):
                 zip_data, count_dates = generer_pack_di_zip(df_filtered)
-                st.download_button(label="⬇️ Télécharger Le Pack ZIP", data=zip_data, file_name="Pack_DI.zip", mime="application/zip")
+                st.download_button(label="⬇️ Télécharger Le Pack ZIP", data=zip_data, file_name="Pack_DI.zip", mime="application/zip", use_container_width=True)
 
 # -------------------------------------------------------------
-# TAB 4 : GESTION DES UTILISATEURS (ADMIN UNIQUEMENT)
+# TAB 4 : ESPACE ADMINISTRATEUR (GESTION ACCÈS)
 # -------------------------------------------------------------
 if st.session_state["role"] == "Admin":
     tab_admin = tabs[3]
     with tab_admin:
-        st.markdown("##### 👥 **Administration des Accès et Utilisateurs**")
+        st.markdown("##### 👥 **Administration des Accès Utilisateurs**")
         df_users = load_users()
 
         col_u1, col_u2 = st.columns([1, 2])
 
         with col_u1:
-            st.markdown("**➕ Ajouter un utilisateur**")
+            st.markdown("**➕ Ajouter un nouvel utilisateur**")
             with st.form("form_add_user"):
                 new_username = st.text_input("Nom d'utilisateur").strip()
                 new_password = st.text_input("Mot de passe", type="password").strip()
@@ -580,11 +655,11 @@ if st.session_state["role"] == "Admin":
                             st.error(msg)
 
         with col_u2:
-            st.markdown("**📜 Liste des comptes enregistrés**")
+            st.markdown("**📜 Liste des utilisateurs enregistrés**")
             users_edited = st.data_editor(
                 df_users,
                 column_config={
-                    "password": st.column_config.TextColumn("Mot de passe (Haché SHA-256)", disabled=True),
+                    "password": st.column_config.TextColumn("Mot de passe (SHA-256)", disabled=True),
                     "role": st.column_config.SelectboxColumn("Rôle", options=["Admin", "Utilisateur"], required=True),
                     "actif": st.column_config.SelectboxColumn("Actif", options=["OUI", "NON"], required=True)
                 },
@@ -601,9 +676,9 @@ if st.session_state["role"] == "Admin":
                     st.error(msg)
 
             with st.expander("🔑 **Réinitialiser le mot de passe d'un utilisateur**"):
-                user_to_reset = st.selectbox("Choisir le compte :", options=df_users["username"].tolist())
+                user_to_reset = st.selectbox("Sélectionner un compte :", options=df_users["username"].tolist())
                 reset_pass = st.text_input("Nouveau mot de passe :", type="password", key="reset_pass_val")
-                if st.button("🔒 Mettre à jour le mot de passe"):
+                if st.button("🔒 Valider le nouveau mot de passe"):
                     if reset_pass.strip():
                         df_users.loc[df_users["username"] == user_to_reset, "password"] = hash_password(reset_pass.strip())
                         ok, msg = save_users(df_users)
@@ -613,4 +688,4 @@ if st.session_state["role"] == "Admin":
                         else:
                             st.error(msg)
                     else:
-                        st.warning("⚠️ Veuillez entrer un mot de passe valide.")
+                        st.warning("⚠️ Entrez un mot de passe valide.")

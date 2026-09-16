@@ -533,123 +533,135 @@ with tab1:
             st.error(msg)
 
 # -------------------------------------------------------------
-# TAB 2 : REGISTRE DE CHANTIER (AVEC FILTRES)
+# TAB 2 : REGISTRE DE CHANTIER (SÉCURISÉ AVEC TRY...EXCEPT)
 # -------------------------------------------------------------
 with tab2:
     st.markdown("##### 🔍 **Registre des Travaux**")
 
-    # --- BARRE DE FILTRES ---
-    with st.expander("🌪️ **Filtres de recherche**", expanded=True):
-        col_f1, col_f2, col_f3 = st.columns(3)
-        with col_f1:
-            auteurs_existants = sorted(list(set([str(a) for a in df["CRÉÉ PAR"].unique() if str(a).strip() and str(a).lower() != 'nan']))) if "CRÉÉ PAR" in df.columns else []
-            filtre_auteur = st.multiselect("👤 Créé par :", options=auteurs_existants)
-        
-        with col_f2:
-            natures_existantes = sorted(list(set([str(n) for n in df["TITRE DE LA NATURE DES TRAVAUX"].unique() if str(n).strip() and str(n).lower() != 'nan']))) if "TITRE DE LA NATURE DES TRAVAUX" in df.columns else []
-            filtre_nature = st.multiselect("📌 Nature des travaux :", options=natures_existantes)
-
-        with col_f3:
-            parties_filtre = sorted(list(set([str(p) for p in df[COL_PARTIE].unique() if str(p).strip() and str(p).lower() != 'nan']))) if COL_PARTIE in df.columns else []
-            filtre_partie = st.multiselect("🧱 Partie d'ouvrage :", options=parties_filtre)
-
-        recherche_mot = st.text_input("🔍 Recherche globale par mot-clé (Ex: PK, type d'activité...) :")
-
-    # APPLICATION DES FILTRES SUR DF
-    df_filtered = df.copy()
-
-    if filtre_auteur:
-        df_filtered = df_filtered[df_filtered["CRÉÉ PAR"].astype(str).isin(filtre_auteur)]
-
-    if filtre_nature:
-        df_filtered = df_filtered[df_filtered["TITRE DE LA NATURE DES TRAVAUX"].astype(str).isin(filtre_nature)]
-
-    if filtre_partie:
-        df_filtered = df_filtered[df_filtered[COL_PARTIE].astype(str).isin(filtre_partie)]
-
-    if recherche_mot.strip():
-        m_clean = recherche_mot.strip().lower()
-        df_filtered = df_filtered[
-            df_filtered.apply(lambda row: row.astype(str).str.lower().str.contains(m_clean).any(), axis=1)
-        ]
-
-    # PRÉPARATION DE L'ÉDITEUR
-    df_editor = df_filtered.copy()
-    if "Imprimer" not in df_editor.columns:
-        df_editor.insert(0, "Imprimer", False)
-
-    edited_df = st.data_editor(
-        df_editor, 
-        column_config={
-            "CRÉÉ PAR": st.column_config.TextColumn("Créé par", disabled=True)
-        },
-        num_rows="dynamic", 
-        height=400, 
-        use_container_width=True
-    )
-
-    col_act1, col_act2 = st.columns(2)
-    with col_act1:
-        if st.button("💾 Enregistrer les modifications", type="secondary", use_container_width=True):
-            edited_clean = edited_df.drop(columns=["Imprimer"], errors="ignore")
+    try:
+        # --- BARRE DE FILTRES ---
+        with st.expander("🌪️ **Filtres de recherche**", expanded=True):
+            col_f1, col_f2, col_f3 = st.columns(3)
+            with col_f1:
+                auteurs_existants = sorted(list(set([str(a) for a in df["CRÉÉ PAR"].unique() if str(a).strip() and str(a).lower() != 'nan']))) if "CRÉÉ PAR" in df.columns else []
+                filtre_auteur = st.multiselect("👤 Créé par :", options=auteurs_existants)
             
-            # Mise à jour sécurisée des lignes modifiées dans la base complète
-            df_to_save = df.copy()
-            df_to_save.update(edited_clean)
+            with col_f2:
+                natures_existantes = sorted(list(set([str(n) for n in df["TITRE DE LA NATURE DES TRAVAUX"].unique() if str(n).strip() and str(n).lower() != 'nan']))) if "TITRE DE LA NATURE DES TRAVAUX" in df.columns else []
+                filtre_nature = st.multiselect("📌 Nature des travaux :", options=natures_existantes)
 
-            # Ajout des nouvelles lignes éventuelles saisies dans l'éditeur
-            nouveaux_indexes = edited_clean.index.difference(df_to_save.index)
-            if not nouveaux_indexes.empty:
-                df_to_save = pd.concat([df_to_save, edited_clean.loc[nouveaux_indexes]], ignore_index=True)
+            with col_f3:
+                parties_filtre = sorted(list(set([str(p) for p in df[COL_PARTIE].unique() if str(p).strip() and str(p).lower() != 'nan']))) if COL_PARTIE in df.columns else []
+                filtre_partie = st.multiselect("🧱 Partie d'ouvrage :", options=parties_filtre)
 
-            success, msg = save_data_to_sheet(df_to_save, sheet_name=chantier_actif)
-            if success:
-                st.success(msg)
-                st.rerun()
-            else:
-                st.error(msg)
+            recherche_mot = st.text_input("🔍 Recherche globale par mot-clé (Ex: PK, type d'activité...) :")
 
-    with col_act2:
-        lignes_selectionnees = edited_df[edited_df["Imprimer"] == True]
-        nb_selections = len(lignes_selectionnees)
-        
-        if st.button(f"📦 Générer les Fiches Sélectionnées ({nb_selections})", type="primary", use_container_width=True):
-            if nb_selections == 0:
-                st.warning("⚠️ Cochez au moins une case 'Imprimer' dans le tableau.")
-            else:
-                zip_buffer = io.BytesIO()
-                fichiers_crees = 0
-                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                    for idx, row in lignes_selectionnees.iterrows():
-                        nom_modele = get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE")
-                        chemin_modele = trouver_modele_word(nom_modele)
-                        if chemin_modele:
-                            contexte = {
-                                'NATURE': get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE"),
-                                'REF': get_col_val(row, "RÉFÉRENCE DE PROCÉDURE", "REF"),
-                                'PARTIE': get_col_val(row, "PARTIE D'OUVRAGE", "PARTIE D meOUVRAGE", "PARTIE"),
-                                'SITUATION': get_col_val(row, "SITUATION", "PK"),
-                                'PIECES': text_to_richtext(get_col_val(row, "PIÈCES JOINTES", "PIECES")),
-                                'DATE': get_col_val(row, "DATE"),
-                                'ACTIVITE': text_to_richtext(get_col_val(row, "ACTIVITÉ RÉALISÉE", "ACTIVITE")),
-                                'ESSAI': get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI"),
-                                'AUTEUR': get_col_val(row, "CRÉÉ PAR", "AUTEUR")
-                            }
-                            docx_b, pdf_b = generer_docx_et_pdf_bytes(chemin_modele, contexte)
-                            nom_base = construire_nom_pdf(row).replace(".pdf", "")
-                            zip_file.writestr(f"{nom_base}.docx", docx_b)
-                            zip_file.writestr(f"{nom_base}.pdf", pdf_b)
-                            fichiers_crees += 1
+        # APPLICATION DES FILTRES SUR DF
+        df_filtered = df.copy()
 
-                if fichiers_crees > 0:
-                    zip_buffer.seek(0)
-                    st.download_button(
-                        label="📦 Télécharger Pack ZIP",
-                        data=zip_buffer,
-                        file_name="Fiches_Chantier.zip",
-                        mime="application/zip",
-                        use_container_width=True
-                    )
+        if filtre_auteur:
+            df_filtered = df_filtered[df_filtered["CRÉÉ PAR"].astype(str).isin(filtre_auteur)]
+
+        if filtre_nature:
+            df_filtered = df_filtered[df_filtered["TITRE DE LA NATURE DES TRAVAUX"].astype(str).isin(filtre_nature)]
+
+        if filtre_partie:
+            df_filtered = df_filtered[df_filtered[COL_PARTIE].astype(str).isin(filtre_partie)]
+
+        if recherche_mot.strip():
+            m_clean = recherche_mot.strip().lower()
+            df_filtered = df_filtered[
+                df_filtered.apply(lambda row: row.astype(str).str.lower().str.contains(m_clean).any(), axis=1)
+            ]
+
+        # PRÉPARATION DE L'ÉDITEUR DE TABLEAU
+        df_editor = df_filtered.copy()
+        if "Imprimer" not in df_editor.columns:
+            df_editor.insert(0, "Imprimer", False)
+
+        edited_df = st.data_editor(
+            df_editor, 
+            column_config={
+                "CRÉÉ PAR": st.column_config.TextColumn("Créé par", disabled=True)
+            },
+            num_rows="dynamic", 
+            height=400, 
+            use_container_width=True
+        )
+
+        col_act1, col_act2 = st.columns(2)
+        with col_act1:
+            if st.button("💾 Enregistrer les modifications", type="secondary", use_container_width=True):
+                try:
+                    edited_clean = edited_df.drop(columns=["Imprimer"], errors="ignore")
+                    
+                    # Mise à jour sécurisée des lignes modifiées dans la base complète
+                    df_to_save = df.copy()
+                    df_to_save.update(edited_clean)
+
+                    # Ajout des nouvelles lignes éventuelles saisies dans l'éditeur
+                    nouveaux_indexes = edited_clean.index.difference(df_to_save.index)
+                    if not nouveaux_indexes.empty:
+                        df_to_save = pd.concat([df_to_save, edited_clean.loc[nouveaux_indexes]], ignore_index=True)
+
+                    success, msg = save_data_to_sheet(df_to_save, sheet_name=chantier_actif)
+                    if success:
+                        st.success(msg)
+                        st.rerun()
+                    else:
+                        st.error(msg)
+                except Exception as e_save:
+                    st.error(f"❌ Erreur lors de la sauvegarde des modifications du tableau : {e_save}")
+
+        with col_act2:
+            lignes_selectionnees = edited_df[edited_df["Imprimer"] == True]
+            nb_selections = len(lignes_selectionnees)
+            
+            if st.button(f"📦 Générer les Fiches Sélectionnées ({nb_selections})", type="primary", use_container_width=True):
+                if nb_selections == 0:
+                    st.warning("⚠️ Cochez au moins une case 'Imprimer' dans le tableau.")
+                else:
+                    try:
+                        zip_buffer = io.BytesIO()
+                        fichiers_crees = 0
+                        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                            for idx, row in lignes_selectionnees.iterrows():
+                                nom_modele = get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE")
+                                chemin_modele = trouver_modele_word(nom_modele)
+                                if chemin_modele:
+                                    contexte = {
+                                        'NATURE': get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE"),
+                                        'REF': get_col_val(row, "RÉFÉRENCE DE PROCÉDURE", "REF"),
+                                        'PARTIE': get_col_val(row, "PARTIE D'OUVRAGE", "PARTIE D meOUVRAGE", "PARTIE"),
+                                        'SITUATION': get_col_val(row, "SITUATION", "PK"),
+                                        'PIECES': text_to_richtext(get_col_val(row, "PIÈCES JOINTES", "PIECES")),
+                                        'DATE': get_col_val(row, "DATE"),
+                                        'ACTIVITE': text_to_richtext(get_col_val(row, "ACTIVITÉ RÉALISÉE", "ACTIVITE")),
+                                        'ESSAI': get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI"),
+                                        'AUTEUR': get_col_val(row, "CRÉÉ PAR", "AUTEUR")
+                                    }
+                                    docx_b, pdf_b = generer_docx_et_pdf_bytes(chemin_modele, contexte)
+                                    nom_base = construire_nom_pdf(row).replace(".pdf", "")
+                                    zip_file.writestr(f"{nom_base}.docx", docx_b)
+                                    zip_file.writestr(f"{nom_base}.pdf", pdf_b)
+                                    fichiers_crees += 1
+
+                        if fichiers_crees > 0:
+                            zip_buffer.seek(0)
+                            st.download_button(
+                                label="📦 Télécharger Pack ZIP",
+                                data=zip_buffer,
+                                file_name="Fiches_Chantier.zip",
+                                mime="application/zip",
+                                use_container_width=True
+                            )
+                        else:
+                            st.error("❌ Aucun fichier n'a pu être généré. Vérifiez l'existence des modèles Word.")
+                    except Exception as e_gen:
+                        st.error(f"❌ Erreur lors de la génération des documents : {e_gen}")
+
+    except Exception as e_tab:
+        st.error(f"❌ Une erreur est survenue lors du traitement du tableau : {e_tab}")
 
 # -------------------------------------------------------------
 # TAB 3 : DEMANDES D'INTERVENTION

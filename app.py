@@ -611,13 +611,13 @@ with tab1:
             st.error(msg)
 
 # -------------------------------------------------------------
-# TAB 2 : REGISTRE DE CHANTIER (ÉDITEUR & IMPRESSION)
+# TAB 2 : REGISTRE DE CHANTIER (SÉLECTION, FILTRES ET TRI A-Z / Z-A)
 # -------------------------------------------------------------
 with tab2:
     st.markdown("##### 🔍 **Registre des Travaux**")
 
     try:
-        with st.expander("🌪️ **Filtres de recherche**", expanded=False):
+        with st.expander("🌪️ **Filtres et Tri du tableau**", expanded=False):
             col_f1, col_f2, col_f3 = st.columns([1, 1, 1])
             with col_f1:
                 auteurs_existants = sorted(list(set([str(a) for a in df["CRÉÉ PAR"].unique() if str(a).strip() and str(a).lower() != 'nan']))) if "CRÉÉ PAR" in df.columns else []
@@ -633,8 +633,24 @@ with tab2:
 
             recherche_mot = st.text_input("🔍 Recherche globale par mot-clé :")
 
+            st.markdown("---")
+            st.markdown("**🔀 Options de tri du tableau**")
+            col_t1, col_t2 = st.columns([1, 1])
+            with col_t1:
+                colonne_tri = st.selectbox(
+                    "Trier par la colonne :", 
+                    options=[c for c in df.columns if c != "Imprimer"], 
+                    index=0
+                )
+            with col_t2:
+                sens_tri = st.selectbox(
+                    "Ordre de tri :", 
+                    options=["A ➔ Z (Croissant)", "Z ➔ A (Décroissant)"]
+                )
+
         df_filtered = df.copy()
 
+        # Application des filtres
         if filtre_auteur:
             df_filtered = df_filtered[df_filtered["CRÉÉ PAR"].astype(str).isin(filtre_auteur)]
 
@@ -650,6 +666,19 @@ with tab2:
                 df_filtered.apply(lambda row: row.astype(str).str.lower().str.contains(m_clean).any(), axis=1)
             ]
 
+        # Application du tri A-Z / Z-A
+        if colonne_tri in df_filtered.columns:
+            est_croissant = (sens_tri == "A ➔ Z (Croissant)")
+            
+            # Si le tri est sur la colonne DATE, conversion en Datetime pour un tri chronologique correct
+            if colonne_tri == "DATE":
+                df_filtered["DATE_TEMP"] = pd.to_datetime(df_filtered["DATE"], dayfirst=True, errors='coerce')
+                df_filtered = df_filtered.sort_values(by="DATE_TEMP", ascending=est_croissant, na_position='last')
+                df_filtered = df_filtered.drop(columns=["DATE_TEMP"])
+            else:
+                df_filtered = df_filtered.sort_values(by=colonne_tri, ascending=est_croissant, na_position='last')
+
+        # Préparation de l'éditeur de données
         df_editor = df_filtered.copy()
         if "Imprimer" not in df_editor.columns:
             df_editor.insert(0, "Imprimer", False)

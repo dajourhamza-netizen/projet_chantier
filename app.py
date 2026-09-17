@@ -38,40 +38,80 @@ COLUMNS_TEMPLATE = [
 USER_COLUMNS = ["username", "password", "role", "actif"]
 
 LIAISONS = {
-    "ARASE DE PST": {
-        "procedure": "TER-PEX-05-00", 
+   "ARASE DE PST": {
+        "procedure": "TER-PEX-05-00",
         "pieces": "* Fiche de suivi de la PST\n* Fiche de réception topographique\n* PVs laboratoire"
     },
     "ARASE DE TERRASSEMENT": {
-        "procedure": "TER-PEX-03-00", 
+        "procedure": "TER-PEX-03-00",
         "pieces": "* Fiche de contrôle des déblais\n* Fiche de réception topographique\n* PVs laboratoire"
     },
     "ASSISE DE REMBLAIS PURGE": {
-        "procedure": "TER-PEX-04-00", 
+        "procedure": "TER-PEX-04-00",
         "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* Fiche d'identification de la purge\n* PVs laboratoire"
     },
     "ASSISE DE REMBLAIS": {
-        "procedure": "TER-PEX-04-00", 
+        "procedure": "TER-PEX-04-00",
         "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* PVs laboratoire"
     },
+    "ASSISE DE REMBLAIS CDF": {
+        "procedure": "TER-PEX-04-00",
+        "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* PVs laboratoire"
+    },
+    "ASSISE DE REMBLAIS CONTIGUS": {
+        "procedure": "OVA-PEX-16-00",
+        "pieces": "* Fiche de suivi des remblais contigus\n* Fiche de contrôle des remblais contigus\n* PVs laboratoire\n* Fiche de réception topographique"
+    },
+    "ASSISE DE REMBLAI DE FOUILLE": {
+        "procedure": "OVA-PEX-04-00",
+        "pieces": "* Fiche de suivi et de contrôle des fouilles et remblaiement de fouilles\n* PVs laboratoire"
+    },
+    "ASSISE DE REMBLAIS RENFORCE": {
+        "procedure": "TER-PEX-13-00",
+        "pieces": "* PV Manifold\n* PVs laboratoire\n* Fiche de réception topographique\n* Fiche de réception assise remblai renforcé"
+    },
+    "ASSISE DRAINANTE": {
+        "procedure": "TER-PEX-13-00",
+        "pieces": "* Fiche de réception topographique\n* PVs laboratoire\n* Fiche de contrôle de l'assise drainante"
+    },
     "COUCHE DE FORME": {
-        "procedure": "TER-PEX-09-00", 
+        "procedure": "TER-PEX-09-00",
         "pieces": "* Fiche de suivi et de contrôle de la CDF\n* Fiche de réception topographique\n* PVs laboratoire"
     },
     "DÉCAPAGE": {
-        "procedure": "TER-PEX-02-00", 
+        "procedure": "TER-PEX-02-00",
         "pieces": "* Fiche de suivi et de contrôle du décapage\n* Fiche des sections à décaper\n* Fiche de réception topographique"
     },
     "DEGAGEMENT D'EMPRISE": {
-        "procedure": "TER-PEX-01-00", 
+        "procedure": "TER-PEX-01-00",
         "pieces": "* Fiche de suivi et de contrôle du dégagement des emprises\n* Fiche de réception topographique\n* Constat dégagement d'emprise"
     },
     "REMBLAIS": {
-        "procedure": "TER-PEX-04-00", 
+        "procedure": "TER-PEX-04-00",
         "pieces": "* Fiche de suivi et de contrôle des remblais\n* PVs laboratoire"
     },
+    "REMBLAIS CDF": {
+        "procedure": "TER-PEX-04-00",
+        "pieces": "* Fiche de suivi et de contrôle des remblais\n* PVs laboratoire"
+    },
+    "REMBLAIS CONTIGUS": {
+        "procedure": "OVA-PEX-16-00",
+        "pieces": "* Fiche de suivi des remblais contigus\n* Fiche de contrôle des remblais contigus\n* PVs laboratoire\n* Fiche de réception topographique"
+    },
+    "REMBLAIS DE FOUILLE": {
+        "procedure": "OVA-PEX-04-00",
+        "pieces": "* Fiche de suivi et de contrôle des fouilles et remblaiement de fouilles\n* PVs laboratoire"
+    },
+    "REMBLAIS DE FOUILLS CDF": {
+        "procedure": "OVA-PEX-04-00",
+        "pieces": "* Fiche de suivi et de contrôle des fouilles et remblaiement de fouilles\n* PVs laboratoire"
+    },
+    "REMBLAIS RENFORCE": {
+        "procedure": "TER-PEX-13-00",
+        "pieces": "* Fiche de suivi des remblais renforcé\n* Fiche de contrôle des armatures Geostrap\n* Fiche de réception de pose des ecailles\n* PVs laboratoire"
+    },
     "REMBLAIS PST": {
-        "procedure": "TER-PEX-05-00", 
+        "procedure": "TER-PEX-05-00",
         "pieces": "* Fiche de suivi et de contrôle des remblais PST\n* PVs laboratoire"
     }
 }

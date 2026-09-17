@@ -594,15 +594,14 @@ with tab1:
             st.error(msg)
 
 # -------------------------------------------------------------
-# TAB 2 : REGISTRE (TRI DIRECTEMENT DANS LES EN-TÊTES DU TABLEAU)
+# TAB 2 : REGISTRE (MENUS DÉROULANTS DE TRI DIRECTEMENT VISIBLES)
 # -------------------------------------------------------------
 with tab2:
     st.markdown("##### 🔍 **Registre des Travaux**")
-    st.info("💡 **Astuce de tri :** Cliquez sur le titre de n'importe quelle colonne dans l'en-tête du tableau pour trier immédiatement de **A ➔ Z** ou **Z ➔ A** (ou par ordre chronologique des dates).")
 
     try:
-        # Bloc d'expandeur pour les filtres de recherche
-        with st.expander("🌪️ **Filtres de recherche**", expanded=False):
+        # Filtres de recherche
+        with st.expander("🌪️ **Filtres de recherche avancés**", expanded=False):
             col_f1, col_f2, col_f3 = st.columns([1, 1, 1])
             with col_f1:
                 auteurs_existants = sorted(list(set([str(a) for a in df["CRÉÉ PAR"].unique() if str(a).strip() and str(a).lower() != 'nan']))) if "CRÉÉ PAR" in df.columns else []
@@ -617,6 +616,23 @@ with tab2:
                 filtre_partie = st.multiselect("🧱 Partie :", options=parties_filtre)
 
             recherche_mot = st.text_input("🔍 Recherche globale par mot-clé :")
+
+        # MENUS DÉROULANTS DE TRI JUSTE AU-DESSUS DU TABLEAU
+        st.markdown("**🔀 Trier les données du tableau :**")
+        col_t1, col_t2 = st.columns([1, 1])
+        with col_t1:
+            colonne_tri = st.selectbox(
+                "Colonne à trier :", 
+                options=[c for c in df.columns if c != "Imprimer"], 
+                index=0,
+                key="select_col_tri"
+            )
+        with col_t2:
+            sens_tri = st.selectbox(
+                "Sens du tri :", 
+                options=["A ➔ Z (Croissant)", "Z ➔ A (Décroissant)"],
+                key="select_sens_tri"
+            )
 
         df_filtered = df.copy()
 
@@ -636,20 +652,25 @@ with tab2:
                 df_filtered.apply(lambda row: row.astype(str).str.lower().str.contains(m_clean).any(), axis=1)
             ]
 
-        # Préparation des données avec conversion des dates pour un tri parfait dans l'en-tête
+        # Application du tri choisi dans les menus déroulants
+        if colonne_tri in df_filtered.columns:
+            est_croissant = (sens_tri == "A ➔ Z (Croissant)")
+            if colonne_tri == "DATE":
+                df_filtered["DATE_TEMP"] = pd.to_datetime(df_filtered["DATE"], dayfirst=True, errors='coerce')
+                df_filtered = df_filtered.sort_values(by="DATE_TEMP", ascending=est_croissant, na_position='last')
+                df_filtered = df_filtered.drop(columns=["DATE_TEMP"])
+            else:
+                df_filtered = df_filtered.sort_values(by=colonne_tri, ascending=est_croissant, na_position='last')
+
+        # Préparation du tableau interactif
         df_editor = df_filtered.copy()
         if "Imprimer" not in df_editor.columns:
             df_editor.insert(0, "Imprimer", False)
 
-        if "DATE" in df_editor.columns:
-            df_editor["DATE"] = pd.to_datetime(df_editor["DATE"], dayfirst=True, errors='coerce')
-
-        # Affichage de l'éditeur de tableau interactif
         edited_df = st.data_editor(
             df_editor, 
             column_config={
                 "Imprimer": st.column_config.CheckboxColumn("Sélection", default=False),
-                "DATE": st.column_config.DateColumn("DATE", format="DD/MM/YYYY"),
                 "CRÉÉ PAR": st.column_config.TextColumn("CRÉÉ PAR", disabled=True)
             },
             num_rows="dynamic", 
@@ -662,8 +683,6 @@ with tab2:
             if st.button("💾 Enregistrer modifications", type="secondary", use_container_width=True):
                 try:
                     edited_clean = edited_df.drop(columns=["Imprimer"], errors="ignore")
-                    if "DATE" in edited_clean.columns:
-                        edited_clean["DATE"] = pd.to_datetime(edited_clean["DATE"], errors='coerce').dt.strftime('%d/%m/%Y').fillna("")
 
                     df_to_save = df.copy()
                     df_to_save.update(edited_clean)
@@ -690,9 +709,6 @@ with tab2:
                     st.warning("⚠️ Cochez au moins une case dans le tableau.")
                 else:
                     try:
-                        if "DATE" in lignes_selectionnees.columns:
-                            lignes_selectionnees["DATE"] = pd.to_datetime(lignes_selectionnees["DATE"], errors='coerce').dt.strftime('%d/%m/%Y').fillna("")
-
                         zip_buffer = io.BytesIO()
                         fichiers_crees = 0
                         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:

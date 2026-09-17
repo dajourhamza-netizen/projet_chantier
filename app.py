@@ -568,8 +568,8 @@ st.markdown(f"""
 
 liste_onglets = [
     "📝 **Saisie**", 
-    "📊 **Registre**", 
-    "📅 **DI**"
+    "📊 **Suivi**", 
+    "📅 **Demande**"
 ]
 
 if st.session_state["role"] == "Admin":

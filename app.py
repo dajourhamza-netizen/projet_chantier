@@ -81,7 +81,6 @@ LIAISONS = {
 # ==========================================
 st.markdown("""
 <style>
-    /* Arrière-plan principal */
     .stApp {
         background-image: linear-gradient(rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.88)), 
                           url("https://i.pinimg.com/736x/3d/6b/f7/3d6bf78abc63f1c9b000d4bc5fbe7fa3.jpg");
@@ -93,7 +92,6 @@ st.markdown("""
 
     [data-testid="stHeader"] { background-color: rgba(0, 0, 0, 0); }
 
-    /* En-tête de l'application */
     .gc-header {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
         color: #ffffff;
@@ -106,7 +104,6 @@ st.markdown("""
     .gc-header h1 { color: #ffffff !important; font-size: 22px !important; font-weight: 800 !important; margin: 0 !important; }
     .gc-header p { color: #94a3b8; margin: 4px 0 0 0; font-size: 13px; }
     
-    /* Boutons agrandis */
     .stButton > button {
         min-height: 48px !important;
         font-size: 15px !important;
@@ -121,7 +118,6 @@ st.markdown("""
         border: none !important; 
     }
     
-    /* Style de la barre latérale */
     section[data-testid="stSidebar"] { 
         background-color: rgba(15, 23, 42, 0.98) !important; 
         color: #ffffff !important; 
@@ -543,64 +539,95 @@ tabs = st.tabs(liste_onglets)
 tab1, tab2, tab3 = tabs[0], tabs[1], tabs[2]
 
 # -------------------------------------------------------------
-# TAB 1 : SAISIE DES DONNÉES
+# TAB 1 : SAISIE DES DONNÉES (OPTION DE NOUVEAUX ÉLÉMENTS DYNAMIQUE)
 # -------------------------------------------------------------
 with tab1:
     st.markdown("##### 👷 **Ajouter une fiche**")
     
+    # 1. Préparation dynamique de la liste "Nature des travaux" (Base + Historique BDD)
+    natures_bdd = sorted(list(set([str(n).strip() for n in df["TITRE DE LA NATURE DES TRAVAUX"].unique() if str(n).strip() and str(n).lower() != 'nan']))) if ("TITRE DE LA NATURE DES TRAVAUX" in df.columns and not df.empty) else []
+    all_natures = sorted(list(set(list(LIAISONS.keys()) + natures_bdd)))
+    options_nature = all_natures + ["➕ Autre / Nouvelle nature..."]
+
+    # 2. Préparation dynamique de la liste "Partie d'ouvrage"
+    parties_existantes = sorted(list(set([str(p).strip() for p in df[COL_PARTIE].unique() if str(p).strip() and str(p).lower() != 'nan']))) if (COL_PARTIE in df.columns and not df.empty) else []
+    options_partie = parties_existantes + ["➕ Autre / Nouvelle partie..."]
+
+    # 3. Préparation dynamique de la liste "Essai / Contrôle"
+    essais_base = ["Aucun", "TENEUR EN EAU", "CAMPACITÉ", "ESSAI À LA PLAQUE", "ESSAI À LA PLAQUE + CAMPACITÉ", "PRELEVEMENT APRES COMPACTAGE", "PRELEVEMENT AVANT COMPACTAGE", "IDENTIFICATION DES MATERIAUX", "PRELEVEMENT"]
+    essais_bdd = sorted(list(set([str(e).strip() for e in df["ÉSSAI/ CONTRÔLE RÉALISÉE"].unique() if str(e).strip() and str(e).lower() != 'nan']))) if ("ÉSSAI/ CONTRÔLE RÉALISÉE" in df.columns and not df.empty) else []
+    all_essais = sorted(list(set(essais_base + essais_bdd)))
+    if "Aucun" in all_essais:
+        all_essais.remove("Aucun")
+        all_essais = ["Aucun"] + all_essais
+    options_essai = all_essais + ["➕ Autre / Nouvel essai..."]
+
     col1, col2 = st.columns([1, 1])
+    
     with col1:
         date_saisie = st.date_input("🗓️ Date des Travaux", value=datetime.today(), format="DD/MM/YYYY")
-        nature_selectionnee = st.selectbox("📌 Nature des travaux", options=list(LIAISONS.keys()))
-        info_liaison = LIAISONS.get(nature_selectionnee, {"procedure": "", "pieces": ""})
         
-        parties_existantes = []
-        if df is not None and COL_PARTIE in df.columns:
-            parties_existantes = sorted(list(set([str(p).strip() for p in df[COL_PARTIE].unique() if str(p).strip() and str(p).lower() != 'nan'])))
-            
-        options_partie = parties_existantes + ["➕ Autre / Nouvelle partie..."]
+        # Choix ou Saisie Nature des travaux
+        nature_choisie = st.selectbox("📌 Nature des travaux", options=options_nature)
+        if nature_choisie == "➕ Autre / Nouvelle nature...":
+            nature_selectionnee = st.text_input("✍️ Saisir la nouvelle Nature :").strip()
+            info_liaison = {"procedure": "", "pieces": ""}
+        else:
+            nature_selectionnee = nature_choisie
+            info_liaison = LIAISONS.get(nature_selectionnee, {"procedure": "", "pieces": ""})
+        
+        # Choix ou Saisie Partie d'ouvrage
         partie_choisie = st.selectbox("🧱 Partie d'ouvrage", options=options_partie)
-        partie_ouvrage = st.text_input("✍️ Nouvelle Partie :") if partie_choisie == "➕ Autre / Nouvelle partie..." else partie_choisie
+        if partie_choisie == "➕ Autre / Nouvelle partie...":
+            partie_ouvrage = st.text_input("✍️ Saisir la nouvelle Partie d'ouvrage :").strip()
+        else:
+            partie_ouvrage = partie_choisie
+
         situation = st.text_input("📍 Situation / PK", placeholder="Ex: PK 1+120 AU PK 1+220")
         
     with col2:
         activite = st.text_area("🚜 Activité réalisée", height=70)
-        essai = st.selectbox("🧪 Essai / Contrôle", options=[
-            "Aucun", "TENEUR EN EAU", "CAMPACITÉ", "ESSAI À LA PLAQUE", 
-            "ESSAI À LA PLAQUE + CAMPACITÉ", "PRELEVEMENT APRES COMPACTAGE", 
-            "PRELEVEMENT AVANT COMPACTAGE", "IDENTIFICATION DES MATERIAUX", "PRELEVEMENT"
-        ])
+        
+        # Choix ou Saisie Essai / Contrôle
+        essai_choisi = st.selectbox("🧪 Essai / Contrôle", options=options_essai)
+        if essai_choisi == "➕ Autre / Nouvel essai...":
+            essai = st.text_input("✍️ Saisir le nouvel Essai / Contrôle :").strip()
+        else:
+            essai = "" if essai_choisi == "Aucun" else essai_choisi
+
         procedure = st.text_input("📑 Procédure", value=info_liaison["procedure"])
         pieces_jointes = st.text_area("📎 Pièces jointes", value=info_liaison["pieces"], height=80)
 
     if st.button("💾 Enregistrer dans Google Sheets", type="primary", use_container_width=True):
-        new_entry = {
-            "DATE": date_saisie.strftime('%d/%m/%Y'),
-            "TITRE DE LA NATURE DES TRAVAUX": nature_selectionnee,
-            COL_PARTIE: partie_ouvrage,
-            "SITUATION": situation,
-            "ACTIVITÉ RÉALISÉE": activite,
-            "ÉSSAI/ CONTRÔLE RÉALISÉE": "" if essai == "Aucun" else essai,
-            "RÉFÉRENCE DE PROCÉDURE": procedure,
-            "PIÈCES JOINTES": pieces_jointes,
-            "CRÉÉ PAR": st.session_state["username"]
-        }
-        df_updated = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
-        success, msg = save_data_to_sheet(df_updated, sheet_name=chantier_actif)
-        if success:
-            st.success(msg)
-            st.rerun()
+        if not nature_selectionnee or not partie_ouvrage:
+            st.error("⚠️ Veuillez renseigner au moins la Nature et la Partie d'ouvrage.")
         else:
-            st.error(msg)
+            new_entry = {
+                "DATE": date_saisie.strftime('%d/%m/%Y'),
+                "TITRE DE LA NATURE DES TRAVAUX": nature_selectionnee,
+                COL_PARTIE: partie_ouvrage,
+                "SITUATION": situation,
+                "ACTIVITÉ RÉALISÉE": activite,
+                "ÉSSAI/ CONTRÔLE RÉALISÉE": essai,
+                "RÉFÉRENCE DE PROCÉDURE": procedure,
+                "PIÈCES JOINTES": pieces_jointes,
+                "CRÉÉ PAR": st.session_state["username"]
+            }
+            df_updated = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
+            success, msg = save_data_to_sheet(df_updated, sheet_name=chantier_actif)
+            if success:
+                st.success(msg)
+                st.rerun()
+            else:
+                st.error(msg)
 
 # -------------------------------------------------------------
-# TAB 2 : REGISTRE (MENUS DÉROULANTS DE TRI DIRECTEMENT VISIBLES)
+# TAB 2 : REGISTRE
 # -------------------------------------------------------------
 with tab2:
     st.markdown("##### 🔍 **Registre des Travaux**")
 
     try:
-        # Filtres de recherche
         with st.expander("🌪️ **Filtres de recherche avancés**", expanded=False):
             col_f1, col_f2, col_f3 = st.columns([1, 1, 1])
             with col_f1:
@@ -617,7 +644,6 @@ with tab2:
 
             recherche_mot = st.text_input("🔍 Recherche globale par mot-clé :")
 
-        # MENUS DÉROULANTS DE TRI JUSTE AU-DESSUS DU TABLEAU
         st.markdown("**🔀 Trier les données du tableau :**")
         col_t1, col_t2 = st.columns([1, 1])
         with col_t1:
@@ -636,7 +662,6 @@ with tab2:
 
         df_filtered = df.copy()
 
-        # Application des filtres de recherche
         if filtre_auteur:
             df_filtered = df_filtered[df_filtered["CRÉÉ PAR"].astype(str).isin(filtre_auteur)]
 
@@ -652,7 +677,6 @@ with tab2:
                 df_filtered.apply(lambda row: row.astype(str).str.lower().str.contains(m_clean).any(), axis=1)
             ]
 
-        # Application du tri choisi dans les menus déroulants
         if colonne_tri in df_filtered.columns:
             est_croissant = (sens_tri == "A ➔ Z (Croissant)")
             if colonne_tri == "DATE":
@@ -662,7 +686,6 @@ with tab2:
             else:
                 df_filtered = df_filtered.sort_values(by=colonne_tri, ascending=est_croissant, na_position='last')
 
-        # Préparation du tableau interactif
         df_editor = df_filtered.copy()
         if "Imprimer" not in df_editor.columns:
             df_editor.insert(0, "Imprimer", False)

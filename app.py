@@ -23,7 +23,7 @@ st.set_page_config(
     page_title="Suivi Chantier - Génie Civil",
     page_icon="🏗️",
     layout="wide",
-    initial_sidebar_state="collapsed"  # Masque la barre latérale au démarrage sur mobile
+    initial_sidebar_state="collapsed"
 )
 
 DOSSIER_CHANTIER = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
@@ -106,7 +106,7 @@ st.markdown("""
     .gc-header h1 { color: #ffffff !important; font-size: 22px !important; font-weight: 800 !important; margin: 0 !important; }
     .gc-header p { color: #94a3b8; margin: 4px 0 0 0; font-size: 13px; }
     
-    /* Boutons agrandis pour faciliter le clic au pouce */
+    /* Boutons agrandis */
     .stButton > button {
         min-height: 48px !important;
         font-size: 15px !important;
@@ -130,7 +130,6 @@ st.markdown("""
         color: #f1f5f9 !important; 
     }
 
-    /* Media queries pour l'adaptation mobile (smartphones et tablettes) */
     @media (max-width: 768px) {
         .block-container {
             padding-top: 1rem !important;
@@ -139,17 +138,9 @@ st.markdown("""
             padding-right: 0.8rem !important;
         }
 
-        .gc-header {
-            padding: 12px 14px !important;
-        }
-
-        .gc-header h1 {
-            font-size: 18px !important;
-        }
-
-        .gc-header p {
-            font-size: 11px !important;
-        }
+        .gc-header { padding: 12px 14px !important; }
+        .gc-header h1 { font-size: 18px !important; }
+        .gc-header p { font-size: 11px !important; }
 
         button[data-baseweb="tab"] {
             font-size: 13px !important;
@@ -159,10 +150,6 @@ st.markdown("""
         div[data-testid="stDataFrame"] {
             overflow-x: auto !important;
             -webkit-overflow-scrolling: touch;
-        }
-
-        div[data-testid="stForm"] {
-            padding: 12px !important;
         }
     }
 </style>
@@ -532,10 +519,6 @@ if st.session_state["role"] == "Admin":
                         st.sidebar.error(msg)
 
 df = load_data_from_sheet(chantier_actif)
-if "DATE" in df.columns:
-    df["DATE"] = pd.to_datetime(df["DATE"], dayfirst=True, errors='coerce')
-    df = df.sort_values(by="DATE", ascending=True)
-    df["DATE"] = df["DATE"].dt.strftime('%d/%m/%Y').fillna("")
 
 # ==========================================
 # 7. INTERFACE PRINCIPALE (ONGLETS)
@@ -611,13 +594,15 @@ with tab1:
             st.error(msg)
 
 # -------------------------------------------------------------
-# TAB 2 : REGISTRE DE CHANTIER (SÉLECTION, FILTRES ET TRI A-Z / Z-A)
+# TAB 2 : REGISTRE (TRI DIRECTEMENT DANS LES EN-TÊTES DU TABLEAU)
 # -------------------------------------------------------------
 with tab2:
     st.markdown("##### 🔍 **Registre des Travaux**")
+    st.info("💡 **Astuce de tri :** Cliquez sur le titre de n'importe quelle colonne dans l'en-tête du tableau pour trier immédiatement de **A ➔ Z** ou **Z ➔ A** (ou par ordre chronologique des dates).")
 
     try:
-        with st.expander("🌪️ **Filtres et Tri du tableau**", expanded=False):
+        # Bloc d'expandeur pour les filtres de recherche
+        with st.expander("🌪️ **Filtres de recherche**", expanded=False):
             col_f1, col_f2, col_f3 = st.columns([1, 1, 1])
             with col_f1:
                 auteurs_existants = sorted(list(set([str(a) for a in df["CRÉÉ PAR"].unique() if str(a).strip() and str(a).lower() != 'nan']))) if "CRÉÉ PAR" in df.columns else []
@@ -633,24 +618,9 @@ with tab2:
 
             recherche_mot = st.text_input("🔍 Recherche globale par mot-clé :")
 
-            st.markdown("---")
-            st.markdown("**🔀 Options de tri du tableau**")
-            col_t1, col_t2 = st.columns([1, 1])
-            with col_t1:
-                colonne_tri = st.selectbox(
-                    "Trier par la colonne :", 
-                    options=[c for c in df.columns if c != "Imprimer"], 
-                    index=0
-                )
-            with col_t2:
-                sens_tri = st.selectbox(
-                    "Ordre de tri :", 
-                    options=["A ➔ Z (Croissant)", "Z ➔ A (Décroissant)"]
-                )
-
         df_filtered = df.copy()
 
-        # Application des filtres
+        # Application des filtres de recherche
         if filtre_auteur:
             df_filtered = df_filtered[df_filtered["CRÉÉ PAR"].astype(str).isin(filtre_auteur)]
 
@@ -666,31 +636,24 @@ with tab2:
                 df_filtered.apply(lambda row: row.astype(str).str.lower().str.contains(m_clean).any(), axis=1)
             ]
 
-        # Application du tri A-Z / Z-A
-        if colonne_tri in df_filtered.columns:
-            est_croissant = (sens_tri == "A ➔ Z (Croissant)")
-            
-            # Si le tri est sur la colonne DATE, conversion en Datetime pour un tri chronologique correct
-            if colonne_tri == "DATE":
-                df_filtered["DATE_TEMP"] = pd.to_datetime(df_filtered["DATE"], dayfirst=True, errors='coerce')
-                df_filtered = df_filtered.sort_values(by="DATE_TEMP", ascending=est_croissant, na_position='last')
-                df_filtered = df_filtered.drop(columns=["DATE_TEMP"])
-            else:
-                df_filtered = df_filtered.sort_values(by=colonne_tri, ascending=est_croissant, na_position='last')
-
-        # Préparation de l'éditeur de données
+        # Préparation des données avec conversion des dates pour un tri parfait dans l'en-tête
         df_editor = df_filtered.copy()
         if "Imprimer" not in df_editor.columns:
             df_editor.insert(0, "Imprimer", False)
 
+        if "DATE" in df_editor.columns:
+            df_editor["DATE"] = pd.to_datetime(df_editor["DATE"], dayfirst=True, errors='coerce')
+
+        # Affichage de l'éditeur de tableau interactif
         edited_df = st.data_editor(
             df_editor, 
             column_config={
-                "CRÉÉ PAR": st.column_config.TextColumn("Créé par", disabled=True),
-                "Imprimer": st.column_config.CheckboxColumn("Sélection", default=False)
+                "Imprimer": st.column_config.CheckboxColumn("Sélection", default=False),
+                "DATE": st.column_config.DateColumn("DATE", format="DD/MM/YYYY"),
+                "CRÉÉ PAR": st.column_config.TextColumn("CRÉÉ PAR", disabled=True)
             },
             num_rows="dynamic", 
-            height=350, 
+            height=380, 
             use_container_width=True
         )
 
@@ -699,7 +662,9 @@ with tab2:
             if st.button("💾 Enregistrer modifications", type="secondary", use_container_width=True):
                 try:
                     edited_clean = edited_df.drop(columns=["Imprimer"], errors="ignore")
-                    
+                    if "DATE" in edited_clean.columns:
+                        edited_clean["DATE"] = pd.to_datetime(edited_clean["DATE"], errors='coerce').dt.strftime('%d/%m/%Y').fillna("")
+
                     df_to_save = df.copy()
                     df_to_save.update(edited_clean)
 
@@ -717,7 +682,7 @@ with tab2:
                     st.error(f"❌ Erreur lors de la sauvegarde : {e_save}")
 
         with col_act2:
-            lignes_selectionnees = edited_df[edited_df["Imprimer"] == True]
+            lignes_selectionnees = edited_df[edited_df["Imprimer"] == True].copy()
             nb_selections = len(lignes_selectionnees)
             
             if st.button(f"📦 Générer ({nb_selections}) Fiche(s)", type="primary", use_container_width=True):
@@ -725,6 +690,9 @@ with tab2:
                     st.warning("⚠️ Cochez au moins une case dans le tableau.")
                 else:
                     try:
+                        if "DATE" in lignes_selectionnees.columns:
+                            lignes_selectionnees["DATE"] = pd.to_datetime(lignes_selectionnees["DATE"], errors='coerce').dt.strftime('%d/%m/%Y').fillna("")
+
                         zip_buffer = io.BytesIO()
                         fichiers_crees = 0
                         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:

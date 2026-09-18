@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import pytz
 from datetime import datetime
 import os
 import re
@@ -256,6 +257,7 @@ def save_users(df_users):
         return True, "✅ Utilisateurs mis à jour !"
     except Exception as e:
         return False, f"❌ Erreur : {e}"
+    
 def log_user_login(username, role):
     try:
         sh = get_spreadsheet()
@@ -265,7 +267,10 @@ def log_user_login(username, role):
             ws = sh.add_worksheet(title="Connexions", rows=200, cols=3)
             ws.append_row(["DATE ET HEURE", "UTILISATEUR", "RÔLE"])
         
-        horodatage = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        # Récupération de l'heure avec le fuseau horaire exact du Maroc
+        tz_maroc = pytz.timezone('Africa/Casablanca')
+        horodatage = datetime.now(tz_maroc).strftime("%d/%m/%Y %H:%M:%S")
+        
         ws.append_row([horodatage, username, role])
     except Exception:
         pass

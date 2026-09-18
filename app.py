@@ -216,7 +216,12 @@ def get_spreadsheet():
     client = get_gsheets_client()
     url = st.secrets["gsheets"]["spreadsheet_url"]
     return client.open_by_url(url)
-
+admin_initial = pd.DataFrame([{
+    "Nom d'utilisateur": "admin",
+    "Mot de passe": "admin",
+    "Rôle": "Admin",
+    "chantiers": "TOUS"
+}])
 # إضافة التخزين المؤقت للاحتفاظ بالبيانات لمدة 60 ثانية
 @st.cache_data(ttl=60) 
 def load_users():

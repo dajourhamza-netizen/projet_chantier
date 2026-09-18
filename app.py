@@ -503,7 +503,6 @@ st.sidebar.markdown("### 🌐 **Google Sheets**")
 
 chantiers_existants = get_sheet_names_gsheets()
 
-# Filtrage selon les droits attribués à l'utilisateur
 user_chantiers_raw = st.session_state.get("chantiers", "TOUS")
 if st.session_state["role"] != "Admin" and user_chantiers_raw != "TOUS":
     list_chantiers_user = [c.strip() for c in user_chantiers_raw.split(",") if c.strip()]
@@ -535,7 +534,7 @@ if st.session_state["role"] == "Admin":
 df = load_data_from_sheet(chantier_actif)
 
 # ==========================================
-# 7. INTERFACE PRINCIPALE (ONGLETS)
+# 7. INTERFACE PRINCIPALE SELON RÔLE
 # ==========================================
 st.markdown(f"""
 <div class="gc-header">
@@ -544,27 +543,27 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-liste_onglets = [
-    "📝 **Saisie**", 
-    "📊 **Registre**", 
-    "📅 **DI**"
-]
+role_actuel = st.session_state["role"]
 
-if st.session_state["role"] == "Admin":
-    liste_onglets.append("👥 **Accès**")
+tab_saisie, tab_registre, tab_di, tab_admin = None, None, None, None
 
-tabs = st.tabs(liste_onglets)
-tab1, tab2, tab3 = tabs[0], tabs[1], tabs[2]
+if role_actuel == "Lecteur":
+    tabs = st.tabs(["📊 **Tableau de suivi**"])
+    tab_registre = tabs[0]
+elif role_actuel == "Admin":
+    tabs = st.tabs(["📝 **Saisie**", "📊 **Registre**", "📅 **DI**", "👥 **Accès**"])
+    tab_saisie, tab_registre, tab_di, tab_admin = tabs[0], tabs[1], tabs[2], tabs[3]
+else:  # Utilisateur
+    tabs = st.tabs(["📝 **Saisie**", "📊 **Registre**", "📅 **DI**"])
+    tab_saisie, tab_registre, tab_di = tabs[0], tabs[1], tabs[2]
 
 # -------------------------------------------------------------
-# TAB 1 : SAISIE DES DONNÉES (RESTREINT AUX LECTEURS)
+# TAB 1 : SAISIE DES DONNÉES (ADMIN ET UTILISATEUR UNIQUEMENT)
 # -------------------------------------------------------------
-with tab1:
-    st.markdown("##### 👷 **Ajouter une fiche**")
-    
-    if st.session_state["role"] == "Lecteur":
-        st.info("🔒 **Mode Lecture Seule** : Votre profil 'Lecteur' ne vous permet pas d'ajouter de nouvelles fiches.")
-    else:
+if tab_saisie:
+    with tab_saisie:
+        st.markdown("##### 👷 **Ajouter une fiche**")
+        
         natures_bdd = sorted(list(set([str(n).strip() for n in df["TITRE DE LA NATURE DES TRAVAUX"].unique() if str(n).strip() and str(n).lower() != 'nan']))) if ("TITRE DE LA NATURE DES TRAVAUX" in df.columns and not df.empty) else []
         all_natures = sorted(list(set(list(LIAISONS.keys()) + natures_bdd)))
         options_nature = all_natures + ["➕ Autre / Nouvelle nature..."]
@@ -637,198 +636,199 @@ with tab1:
                     st.error(msg)
 
 # -------------------------------------------------------------
-# TAB 2 : REGISTRE
+# TAB 2 : REGISTRE / TABLEAU DE SUIVI (CONSULTATION VS ÉDITION)
 # -------------------------------------------------------------
-with tab2:
-    st.markdown("##### 🔍 **Registre des Travaux**")
+if tab_registre:
+    with tab_registre:
+        st.markdown("##### 🔍 **Tableau de Suivi des Travaux**")
 
-    try:
-        with st.expander("🌪️ **Filtres de recherche avancés**", expanded=False):
-            col_f1, col_f2, col_f3 = st.columns([1, 1, 1])
-            with col_f1:
-                auteurs_existants = sorted(list(set([str(a) for a in df["CRÉÉ PAR"].unique() if str(a).strip() and str(a).lower() != 'nan']))) if "CRÉÉ PAR" in df.columns else []
-                filtre_auteur = st.multiselect("👤 Auteur :", options=auteurs_existants)
-            
-            with col_f2:
-                natures_existantes = sorted(list(set([str(n) for n in df["TITRE DE LA NATURE DES TRAVAUX"].unique() if str(n).strip() and str(n).lower() != 'nan']))) if "TITRE DE LA NATURE DES TRAVAUX" in df.columns else []
-                filtre_nature = st.multiselect("📌 Nature :", options=natures_existantes)
+        try:
+            with st.expander("🌪️ **Filtres de recherche avancés**", expanded=False):
+                col_f1, col_f2, col_f3 = st.columns([1, 1, 1])
+                with col_f1:
+                    auteurs_existants = sorted(list(set([str(a) for a in df["CRÉÉ PAR"].unique() if str(a).strip() and str(a).lower() != 'nan']))) if "CRÉÉ PAR" in df.columns else []
+                    filtre_auteur = st.multiselect("👤 Auteur :", options=auteurs_existants)
+                
+                with col_f2:
+                    natures_existantes = sorted(list(set([str(n) for n in df["TITRE DE LA NATURE DES TRAVAUX"].unique() if str(n).strip() and str(n).lower() != 'nan']))) if "TITRE DE LA NATURE DES TRAVAUX" in df.columns else []
+                    filtre_nature = st.multiselect("📌 Nature :", options=natures_existantes)
 
-            with col_f3:
-                parties_filtre = sorted(list(set([str(p) for p in df[COL_PARTIE].unique() if str(p).strip() and str(p).lower() != 'nan']))) if COL_PARTIE in df.columns else []
-                filtre_partie = st.multiselect("🧱 Partie :", options=parties_filtre)
+                with col_f3:
+                    parties_filtre = sorted(list(set([str(p) for p in df[COL_PARTIE].unique() if str(p).strip() and str(p).lower() != 'nan']))) if COL_PARTIE in df.columns else []
+                    filtre_partie = st.multiselect("🧱 Partie :", options=parties_filtre)
 
-            recherche_mot = st.text_input("🔍 Recherche globale par mot-clé :")
+                recherche_mot = st.text_input("🔍 Recherche globale par mot-clé :")
 
-        st.markdown("**🔀 Trier les données du tableau :**")
-        col_t1, col_t2 = st.columns([1, 1])
-        with col_t1:
-            colonne_tri = st.selectbox(
-                "Colonne à trier :", 
-                options=[c for c in df.columns if c != "Imprimer"], 
-                index=0,
-                key="select_col_tri"
-            )
-        with col_t2:
-            sens_tri = st.selectbox(
-                "Sens du tri :", 
-                options=["A ➔ Z (Croissant)", "Z ➔ A (Décroissant)"],
-                key="select_sens_tri"
-            )
+            st.markdown("**🔀 Trier les données du tableau :**")
+            col_t1, col_t2 = st.columns([1, 1])
+            with col_t1:
+                colonne_tri = st.selectbox(
+                    "Colonne à trier :", 
+                    options=[c for c in df.columns if c != "Imprimer"], 
+                    index=0,
+                    key="select_col_tri"
+                )
+            with col_t2:
+                sens_tri = st.selectbox(
+                    "Sens du tri :", 
+                    options=["A ➔ Z (Croissant)", "Z ➔ A (Décroissant)"],
+                    key="select_sens_tri"
+                )
 
-        df_filtered = df.copy()
+            df_filtered = df.copy()
 
-        if filtre_auteur:
-            df_filtered = df_filtered[df_filtered["CRÉÉ PAR"].astype(str).isin(filtre_auteur)]
+            if filtre_auteur:
+                df_filtered = df_filtered[df_filtered["CRÉÉ PAR"].astype(str).isin(filtre_auteur)]
 
-        if filtre_nature:
-            df_filtered = df_filtered[df_filtered["TITRE DE LA NATURE DES TRAVAUX"].astype(str).isin(filtre_nature)]
+            if filtre_nature:
+                df_filtered = df_filtered[df_filtered["TITRE DE LA NATURE DES TRAVAUX"].astype(str).isin(filtre_nature)]
 
-        if filtre_partie:
-            df_filtered = df_filtered[df_filtered[COL_PARTIE].astype(str).isin(filtre_partie)]
+            if filtre_partie:
+                df_filtered = df_filtered[df_filtered[COL_PARTIE].astype(str).isin(filtre_partie)]
 
-        if recherche_mot.strip():
-            m_clean = recherche_mot.strip().lower()
-            df_filtered = df_filtered[
-                df_filtered.apply(lambda row: row.astype(str).str.lower().str.contains(m_clean).any(), axis=1)
-            ]
+            if recherche_mot.strip():
+                m_clean = recherche_mot.strip().lower()
+                df_filtered = df_filtered[
+                    df_filtered.apply(lambda row: row.astype(str).str.lower().str.contains(m_clean).any(), axis=1)
+                ]
 
-        if colonne_tri in df_filtered.columns:
-            est_croissant = (sens_tri == "A ➔ Z (Croissant)")
-            if colonne_tri == "DATE":
-                df_filtered["DATE_TEMP"] = pd.to_datetime(df_filtered["DATE"], dayfirst=True, errors='coerce')
-                df_filtered = df_filtered.sort_values(by="DATE_TEMP", ascending=est_croissant, na_position='last')
-                df_filtered = df_filtered.drop(columns=["DATE_TEMP"])
-            else:
-                df_filtered = df_filtered.sort_values(by=colonne_tri, ascending=est_croissant, na_position='last')
-
-        df_editor = df_filtered.copy()
-        if "Imprimer" not in df_editor.columns:
-            df_editor.insert(0, "Imprimer", False)
-
-        is_lecteur = (st.session_state["role"] == "Lecteur")
-
-        edited_df = st.data_editor(
-            df_editor, 
-            column_config={
-                "Imprimer": st.column_config.CheckboxColumn("Sélection", default=False),
-                "CRÉÉ PAR": st.column_config.TextColumn("CRÉÉ PAR", disabled=True)
-            },
-            disabled=is_lecteur,
-            num_rows="dynamic" if not is_lecteur else "fixed", 
-            height=380, 
-            use_container_width=True
-        )
-
-        col_act1, col_act2 = st.columns([1, 1])
-        with col_act1:
-            if not is_lecteur:
-                if st.button("💾 Enregistrer modifications", type="secondary", use_container_width=True):
-                    try:
-                        edited_clean = edited_df.drop(columns=["Imprimer"], errors="ignore")
-
-                        df_to_save = df.copy()
-                        df_to_save.update(edited_clean)
-
-                        nouveaux_indexes = edited_clean.index.difference(df_to_save.index)
-                        if not nouveaux_indexes.empty:
-                            df_to_save = pd.concat([df_to_save, edited_clean.loc[nouveaux_indexes]], ignore_index=True)
-
-                        success, msg = save_data_to_sheet(df_to_save, sheet_name=chantier_actif)
-                        if success:
-                            st.success(msg)
-                            st.rerun()
-                        else:
-                            st.error(msg)
-                    except Exception as e_save:
-                        st.error(f"❌ Erreur lors de la sauvegarde : {e_save}")
-            else:
-                st.info("ℹ️ Mode consultation : Modification du tableau désactivée.")
-
-        with col_act2:
-            lignes_selectionnees = edited_df[edited_df["Imprimer"] == True].copy()
-            nb_selections = len(lignes_selectionnees)
-            
-            if st.button(f"📦 Générer ({nb_selections}) Fiche(s)", type="primary", use_container_width=True):
-                if nb_selections == 0:
-                    st.warning("⚠️ Cochez au moins une case dans le tableau.")
+            if colonne_tri in df_filtered.columns:
+                est_croissant = (sens_tri == "A ➔ Z (Croissant)")
+                if colonne_tri == "DATE":
+                    df_filtered["DATE_TEMP"] = pd.to_datetime(df_filtered["DATE"], dayfirst=True, errors='coerce')
+                    df_filtered = df_filtered.sort_values(by="DATE_TEMP", ascending=est_croissant, na_position='last')
+                    df_filtered = df_filtered.drop(columns=["DATE_TEMP"])
                 else:
-                    try:
-                        zip_buffer = io.BytesIO()
-                        fichiers_crees = 0
-                        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                            for idx, row in lignes_selectionnees.iterrows():
-                                nom_modele = get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE")
-                                chemin_modele = trouver_modele_word(nom_modele)
-                                if chemin_modele:
-                                    contexte = {
-                                        'NATURE': get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE"),
-                                        'REF': get_col_val(row, "RÉFÉRENCE DE PROCÉDURE", "REF"),
-                                        'PARTIE': get_col_val(row, "PARTIE D'OUVRAGE", "PARTIE D meOUVRAGE", "PARTIE"),
-                                        'SITUATION': get_col_val(row, "SITUATION", "PK"),
-                                        'PIECES': text_to_richtext(get_col_val(row, "PIÈCES JOINTES", "PIECES")),
-                                        'DATE': get_col_val(row, "DATE"),
-                                        'ACTIVITE': text_to_richtext(get_col_val(row, "ACTIVITÉ RÉALISÉE", "ACTIVITE")),
-                                        'ESSAI': get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI"),
-                                        'AUTEUR': get_col_val(row, "CRÉÉ PAR", "AUTEUR")
-                                    }
-                                    docx_b, pdf_b = generer_docx_et_pdf_bytes(chemin_modele, contexte)
-                                    nom_base = construire_nom_pdf(row).replace(".pdf", "")
-                                    zip_file.writestr(f"{nom_base}.docx", docx_b)
-                                    zip_file.writestr(f"{nom_base}.pdf", pdf_b)
-                                    fichiers_crees += 1
+                    df_filtered = df_filtered.sort_values(by=colonne_tri, ascending=est_croissant, na_position='last')
 
-                        if fichiers_crees > 0:
-                            zip_buffer.seek(0)
-                            st.download_button(
-                                label="⬇️ Télécharger Pack ZIP",
-                                data=zip_buffer,
-                                file_name="Fiches_Chantier.zip",
-                                mime="application/zip",
-                                use_container_width=True
-                            )
+            # VUE POUR LECTEUR : TABLEAU SEUL
+            if role_actuel == "Lecteur":
+                st.dataframe(df_filtered, use_container_width=True, height=450)
+            
+            # VUE POUR ADMIN ET UTILISATEUR : ÉDITION + GÉNÉRATION DE FICHES
+            else:
+                df_editor = df_filtered.copy()
+                if "Imprimer" not in df_editor.columns:
+                    df_editor.insert(0, "Imprimer", False)
+
+                edited_df = st.data_editor(
+                    df_editor, 
+                    column_config={
+                        "Imprimer": st.column_config.CheckboxColumn("Sélection", default=False),
+                        "CRÉÉ PAR": st.column_config.TextColumn("CRÉÉ PAR", disabled=True)
+                    },
+                    num_rows="dynamic", 
+                    height=380, 
+                    use_container_width=True
+                )
+
+                col_act1, col_act2 = st.columns([1, 1])
+                with col_act1:
+                    if st.button("💾 Enregistrer modifications", type="secondary", use_container_width=True):
+                        try:
+                            edited_clean = edited_df.drop(columns=["Imprimer"], errors="ignore")
+
+                            df_to_save = df.copy()
+                            df_to_save.update(edited_clean)
+
+                            nouveaux_indexes = edited_clean.index.difference(df_to_save.index)
+                            if not nouveaux_indexes.empty:
+                                df_to_save = pd.concat([df_to_save, edited_clean.loc[nouveaux_indexes]], ignore_index=True)
+
+                            success, msg = save_data_to_sheet(df_to_save, sheet_name=chantier_actif)
+                            if success:
+                                st.success(msg)
+                                st.rerun()
+                            else:
+                                st.error(msg)
+                        except Exception as e_save:
+                            st.error(f"❌ Erreur lors de la sauvegarde : {e_save}")
+
+                with col_act2:
+                    lignes_selectionnees = edited_df[edited_df["Imprimer"] == True].copy()
+                    nb_selections = len(lignes_selectionnees)
+                    
+                    if st.button(f"📦 Générer ({nb_selections}) Fiche(s)", type="primary", use_container_width=True):
+                        if nb_selections == 0:
+                            st.warning("⚠️ Cochez au moins une case dans le tableau.")
                         else:
-                            st.error("❌ Aucun modèle Word trouvé correspondant.")
-                    except Exception as e_gen:
-                        st.error(f"❌ Erreur de génération : {e_gen}")
+                            try:
+                                zip_buffer = io.BytesIO()
+                                fichiers_crees = 0
+                                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                                    for idx, row in lignes_selectionnees.iterrows():
+                                        nom_modele = get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE")
+                                        chemin_modele = trouver_modele_word(nom_modele)
+                                        if chemin_modele:
+                                            contexte = {
+                                                'NATURE': get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE"),
+                                                'REF': get_col_val(row, "RÉFÉRENCE DE PROCÉDURE", "REF"),
+                                                'PARTIE': get_col_val(row, "PARTIE D'OUVRAGE", "PARTIE D meOUVRAGE", "PARTIE"),
+                                                'SITUATION': get_col_val(row, "SITUATION", "PK"),
+                                                'PIECES': text_to_richtext(get_col_val(row, "PIÈCES JOINTES", "PIECES")),
+                                                'DATE': get_col_val(row, "DATE"),
+                                                'ACTIVITE': text_to_richtext(get_col_val(row, "ACTIVITÉ RÉALISÉE", "ACTIVITE")),
+                                                'ESSAI': get_col_val(row, "ÉSSAI/ CONTRÔLE RÉALISÉE", "ESSAI"),
+                                                'AUTEUR': get_col_val(row, "CRÉÉ PAR", "AUTEUR")
+                                            }
+                                            docx_b, pdf_b = generer_docx_et_pdf_bytes(chemin_modele, contexte)
+                                            nom_base = construire_nom_pdf(row).replace(".pdf", "")
+                                            zip_file.writestr(f"{nom_base}.docx", docx_b)
+                                            zip_file.writestr(f"{nom_base}.pdf", pdf_b)
+                                            fichiers_crees += 1
 
-    except Exception as e_tab:
-        st.error(f"❌ Erreur sur le tableau : {e_tab}")
+                                if fichiers_crees > 0:
+                                    zip_buffer.seek(0)
+                                    st.download_button(
+                                        label="⬇️ Télécharger Pack ZIP",
+                                        data=zip_buffer,
+                                        file_name="Fiches_Chantier.zip",
+                                        mime="application/zip",
+                                        use_container_width=True
+                                    )
+                                else:
+                                    st.error("❌ Aucun modèle Word trouvé correspondant.")
+                            except Exception as e_gen:
+                                st.error(f"❌ Erreur de génération : {e_gen}")
+
+        except Exception as e_tab:
+            st.error(f"❌ Erreur sur le tableau : {e_tab}")
 
 # -------------------------------------------------------------
 # TAB 3 : DEMANDES D'INTERVENTION (DI)
 # -------------------------------------------------------------
-with tab3:
-    st.subheader("📅 Demandes d'Intervention (DI)")
-    date_range = st.date_input("📅 Sélectionner date / période :", value=(), format="DD/MM/YYYY")
-    if 'df' in locals() and df is not None and not df.empty:
-        df_temp = df.copy()
-        df_temp['DATE_DT'] = pd.to_datetime(df_temp['DATE'], dayfirst=True, errors='coerce').dt.date
-        df_filtered_di = pd.DataFrame()
-        
-        if len(date_range) == 2:
-            df_filtered_di = df_temp[(df_temp['DATE_DT'] >= date_range[0]) & (df_temp['DATE_DT'] <= date_range[1])]
-        elif len(date_range) == 1:
-            df_filtered_di = df_temp[df_temp['DATE_DT'] == date_range[0]]
+if tab_di:
+    with tab_di:
+        st.subheader("📅 Demandes d'Intervention (DI)")
+        date_range = st.date_input("📅 Sélectionner date / période :", value=(), format="DD/MM/YYYY")
+        if 'df' in locals() and df is not None and not df.empty:
+            df_temp = df.copy()
+            df_temp['DATE_DT'] = pd.to_datetime(df_temp['DATE'], dayfirst=True, errors='coerce').dt.date
+            df_filtered_di = pd.DataFrame()
+            
+            if len(date_range) == 2:
+                df_filtered_di = df_temp[(df_temp['DATE_DT'] >= date_range[0]) & (df_temp['DATE_DT'] <= date_range[1])]
+            elif len(date_range) == 1:
+                df_filtered_di = df_temp[df_temp['DATE_DT'] == date_range[0]]
 
-        if not df_filtered_di.empty:
-            st.dataframe(df_filtered_di.drop(columns=['DATE_DT'], errors='ignore'), use_container_width=True)
-            if st.button("📦 Générer Pack DI", type="primary", use_container_width=True):
-                zip_data, count_dates = generer_pack_di_zip(df_filtered_di)
-                st.download_button(
-                    label="⬇️ Télécharger Le Pack ZIP", 
-                    data=zip_data, 
-                    file_name="Pack_DI.zip", 
-                    mime="application/zip", 
-                    use_container_width=True
-                )
-        elif len(date_range) > 0:
-            st.info("ℹ️ Aucune donnée trouvée pour la période sélectionnée.")
+            if not df_filtered_di.empty:
+                st.dataframe(df_filtered_di.drop(columns=['DATE_DT'], errors='ignore'), use_container_width=True)
+                if st.button("📦 Générer Pack DI", type="primary", use_container_width=True):
+                    zip_data, count_dates = generer_pack_di_zip(df_filtered_di)
+                    st.download_button(
+                        label="⬇️ Télécharger Le Pack ZIP", 
+                        data=zip_data, 
+                        file_name="Pack_DI.zip", 
+                        mime="application/zip", 
+                        use_container_width=True
+                    )
+            elif len(date_range) > 0:
+                st.info("ℹ️ Aucune donnée trouvée pour la période sélectionnée.")
 
 # -------------------------------------------------------------
 # TAB 4 : ESPACE ADMINISTRATEUR (GESTION COMPTES & CHANTIERS)
 # -------------------------------------------------------------
-if st.session_state["role"] == "Admin":
-    tab_admin = tabs[3]
+if tab_admin:
     with tab_admin:
         st.markdown("##### 👥 **Gestion des Utilisateurs & Droits par Chantier**")
         df_users = load_users()

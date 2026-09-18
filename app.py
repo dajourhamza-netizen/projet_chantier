@@ -35,83 +35,43 @@ COLUMNS_TEMPLATE = [
     "RÉFÉRENCE DE PROCÉDURE", "PIÈCES JOINTES", "CRÉÉ PAR"
 ]
 
-USER_COLUMNS = ["username", "password", "role", "actif"]
+USER_COLUMNS = ["username", "password", "role", "actif", "chantiers"]
 
 LIAISONS = {
-   "ARASE DE PST": {
-        "procedure": "TER-PEX-05-00",
+    "ARASE DE PST": {
+        "procedure": "TER-PEX-05-00", 
         "pieces": "* Fiche de suivi de la PST\n* Fiche de réception topographique\n* PVs laboratoire"
     },
     "ARASE DE TERRASSEMENT": {
-        "procedure": "TER-PEX-03-00",
+        "procedure": "TER-PEX-03-00", 
         "pieces": "* Fiche de contrôle des déblais\n* Fiche de réception topographique\n* PVs laboratoire"
     },
     "ASSISE DE REMBLAIS PURGE": {
-        "procedure": "TER-PEX-04-00",
+        "procedure": "TER-PEX-04-00", 
         "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* Fiche d'identification de la purge\n* PVs laboratoire"
     },
     "ASSISE DE REMBLAIS": {
-        "procedure": "TER-PEX-04-00",
+        "procedure": "TER-PEX-04-00", 
         "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* PVs laboratoire"
-    },
-    "ASSISE DE REMBLAIS CDF": {
-        "procedure": "TER-PEX-04-00",
-        "pieces": "* Fiche de réception de l'assise des remblais\n* Fiche de réception topographique\n* PVs laboratoire"
-    },
-    "ASSISE DE REMBLAIS CONTIGUS": {
-        "procedure": "OVA-PEX-16-00",
-        "pieces": "* Fiche de suivi des remblais contigus\n* Fiche de contrôle des remblais contigus\n* PVs laboratoire\n* Fiche de réception topographique"
-    },
-    "ASSISE DE REMBLAI DE FOUILLE": {
-        "procedure": "OVA-PEX-04-00",
-        "pieces": "* Fiche de suivi et de contrôle des fouilles et remblaiement de fouilles\n* PVs laboratoire"
-    },
-    "ASSISE DE REMBLAIS RENFORCE": {
-        "procedure": "TER-PEX-13-00",
-        "pieces": "* PV Manifold\n* PVs laboratoire\n* Fiche de réception topographique\n* Fiche de réception assise remblai renforcé"
-    },
-    "ASSISE DRAINANTE": {
-        "procedure": "TER-PEX-13-00",
-        "pieces": "* Fiche de réception topographique\n* PVs laboratoire\n* Fiche de contrôle de l'assise drainante"
     },
     "COUCHE DE FORME": {
-        "procedure": "TER-PEX-09-00",
+        "procedure": "TER-PEX-09-00", 
         "pieces": "* Fiche de suivi et de contrôle de la CDF\n* Fiche de réception topographique\n* PVs laboratoire"
     },
     "DÉCAPAGE": {
-        "procedure": "TER-PEX-02-00",
+        "procedure": "TER-PEX-02-00", 
         "pieces": "* Fiche de suivi et de contrôle du décapage\n* Fiche des sections à décaper\n* Fiche de réception topographique"
     },
     "DEGAGEMENT D'EMPRISE": {
-        "procedure": "TER-PEX-01-00",
+        "procedure": "TER-PEX-01-00", 
         "pieces": "* Fiche de suivi et de contrôle du dégagement des emprises\n* Fiche de réception topographique\n* Constat dégagement d'emprise"
     },
     "REMBLAIS": {
-        "procedure": "TER-PEX-04-00",
+        "procedure": "TER-PEX-04-00", 
         "pieces": "* Fiche de suivi et de contrôle des remblais\n* PVs laboratoire"
-    },
-    "REMBLAIS CDF": {
-        "procedure": "TER-PEX-04-00",
-        "pieces": "* Fiche de suivi et de contrôle des remblais\n* PVs laboratoire"
-    },
-    "REMBLAIS CONTIGUS": {
-        "procedure": "OVA-PEX-16-00",
-        "pieces": "* Fiche de suivi des remblais contigus\n* Fiche de contrôle des remblais contigus\n* PVs laboratoire\n* Fiche de réception topographique"
-    },
-    "REMBLAIS DE FOUILLE": {
-        "procedure": "OVA-PEX-04-00",
-        "pieces": "* Fiche de suivi et de contrôle des fouilles et remblaiement de fouilles\n* PVs laboratoire"
-    },
-    "REMBLAIS DE FOUILLS CDF": {
-        "procedure": "OVA-PEX-04-00",
-        "pieces": "* Fiche de suivi et de contrôle des fouilles et remblaiement de fouilles\n* PVs laboratoire"
-    },
-    "REMBLAIS RENFORCE": {
-        "procedure": "TER-PEX-13-00",
-        "pieces": "* Fiche de suivi des remblais renforcé\n* Fiche de contrôle des armatures Geostrap\n* Fiche de réception de pose des ecailles\n* PVs laboratoire"
     },
     "REMBLAIS PST": {
-        "procedure": "TER-PEX-05-00",
+        "procedure": "TER-PEX-05-00", 
         "pieces": "* Fiche de suivi et de contrôle des remblais PST\n* PVs laboratoire"
     }
 }
@@ -228,13 +188,17 @@ def load_users():
                 "username": "admin",
                 "password": hash_password("admin123"),
                 "role": "Admin",
-                "actif": "OUI"
+                "actif": "OUI",
+                "chantiers": "TOUS"
             }])
             ws.update([admin_initial.columns.values.tolist()] + admin_initial.astype(str).values.tolist())
             return admin_initial
 
         records = ws.get_all_records()
-        return pd.DataFrame(records)
+        df_u = pd.DataFrame(records)
+        if "chantiers" not in df_u.columns:
+            df_u["chantiers"] = "TOUS"
+        return df_u
     except Exception as e:
         st.error(f"Erreur lors du chargement des utilisateurs : {e}")
         return pd.DataFrame(columns=USER_COLUMNS)
@@ -478,6 +442,7 @@ if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
     st.session_state["username"] = None
     st.session_state["role"] = None
+    st.session_state["chantiers"] = "TOUS"
 
 def page_connexion():
     st.markdown("""
@@ -508,6 +473,7 @@ def page_connexion():
                         st.session_state["authenticated"] = True
                         st.session_state["username"] = info_user["username"]
                         st.session_state["role"] = info_user["role"]
+                        st.session_state["chantiers"] = str(info_user.get("chantiers", "TOUS"))
                         st.success("Connexion réussie !")
                         st.rerun()
                     else:
@@ -521,7 +487,7 @@ if not st.session_state["authenticated"]:
     st.stop()
 
 # ==========================================
-# 6. BARRE LATÉRALE & GESTION DES PROJETS
+# 6. BARRE LATÉRALE & FILTRAGE DES CHANTIERS
 # ==========================================
 st.sidebar.markdown(f"👤 **{st.session_state['username']}** ({st.session_state['role']})")
 
@@ -529,13 +495,25 @@ if st.sidebar.button("🚪 Déconnexion", use_container_width=True):
     st.session_state["authenticated"] = False
     st.session_state["username"] = None
     st.session_state["role"] = None
+    st.session_state["chantiers"] = "TOUS"
     st.rerun()
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🌐 **Google Sheets**")
 
 chantiers_existants = get_sheet_names_gsheets()
-chantier_actif = st.sidebar.selectbox("📌 **Projet Actif :**", options=chantiers_existants)
+
+# Filtrage selon les droits attribués à l'utilisateur
+user_chantiers_raw = st.session_state.get("chantiers", "TOUS")
+if st.session_state["role"] != "Admin" and user_chantiers_raw != "TOUS":
+    list_chantiers_user = [c.strip() for c in user_chantiers_raw.split(",") if c.strip()]
+    chantiers_autorises = [c for c in chantiers_existants if c in list_chantiers_user]
+    if not chantiers_autorises:
+        chantiers_autorises = chantiers_existants
+else:
+    chantiers_autorises = chantiers_existants
+
+chantier_actif = st.sidebar.selectbox("📌 **Projet Actif :**", options=chantiers_autorises)
 
 if st.session_state["role"] == "Admin":
     with st.sidebar.expander("➕ **Nouveau Projet**", expanded=False):
@@ -568,8 +546,8 @@ st.markdown(f"""
 
 liste_onglets = [
     "📝 **Saisie**", 
-    "📊 **Suivi**", 
-    "📅 **Demande**"
+    "📊 **Registre**", 
+    "📅 **DI**"
 ]
 
 if st.session_state["role"] == "Admin":
@@ -579,87 +557,84 @@ tabs = st.tabs(liste_onglets)
 tab1, tab2, tab3 = tabs[0], tabs[1], tabs[2]
 
 # -------------------------------------------------------------
-# TAB 1 : SAISIE DES DONNÉES (OPTION DE NOUVEAUX ÉLÉMENTS DYNAMIQUE)
+# TAB 1 : SAISIE DES DONNÉES (RESTREINT AUX LECTEURS)
 # -------------------------------------------------------------
 with tab1:
     st.markdown("##### 👷 **Ajouter une fiche**")
     
-    # 1. Préparation dynamique de la liste "Nature des travaux" (Base + Historique BDD)
-    natures_bdd = sorted(list(set([str(n).strip() for n in df["TITRE DE LA NATURE DES TRAVAUX"].unique() if str(n).strip() and str(n).lower() != 'nan']))) if ("TITRE DE LA NATURE DES TRAVAUX" in df.columns and not df.empty) else []
-    all_natures = sorted(list(set(list(LIAISONS.keys()) + natures_bdd)))
-    options_nature = all_natures + ["➕ Autre / Nouvelle nature..."]
+    if st.session_state["role"] == "Lecteur":
+        st.info("🔒 **Mode Lecture Seule** : Votre profil 'Lecteur' ne vous permet pas d'ajouter de nouvelles fiches.")
+    else:
+        natures_bdd = sorted(list(set([str(n).strip() for n in df["TITRE DE LA NATURE DES TRAVAUX"].unique() if str(n).strip() and str(n).lower() != 'nan']))) if ("TITRE DE LA NATURE DES TRAVAUX" in df.columns and not df.empty) else []
+        all_natures = sorted(list(set(list(LIAISONS.keys()) + natures_bdd)))
+        options_nature = all_natures + ["➕ Autre / Nouvelle nature..."]
 
-    # 2. Préparation dynamique de la liste "Partie d'ouvrage"
-    parties_existantes = sorted(list(set([str(p).strip() for p in df[COL_PARTIE].unique() if str(p).strip() and str(p).lower() != 'nan']))) if (COL_PARTIE in df.columns and not df.empty) else []
-    options_partie = parties_existantes + ["➕ Autre / Nouvelle partie..."]
+        parties_existantes = sorted(list(set([str(p).strip() for p in df[COL_PARTIE].unique() if str(p).strip() and str(p).lower() != 'nan']))) if (COL_PARTIE in df.columns and not df.empty) else []
+        options_partie = parties_existantes + ["➕ Autre / Nouvelle partie..."]
 
-    # 3. Préparation dynamique de la liste "Essai / Contrôle"
-    essais_base = ["Aucun", "TENEUR EN EAU", "CAMPACITÉ", "ESSAI À LA PLAQUE", "ESSAI À LA PLAQUE + CAMPACITÉ", "PRELEVEMENT APRES COMPACTAGE", "PRELEVEMENT AVANT COMPACTAGE", "IDENTIFICATION DES MATERIAUX", "PRELEVEMENT"]
-    essais_bdd = sorted(list(set([str(e).strip() for e in df["ÉSSAI/ CONTRÔLE RÉALISÉE"].unique() if str(e).strip() and str(e).lower() != 'nan']))) if ("ÉSSAI/ CONTRÔLE RÉALISÉE" in df.columns and not df.empty) else []
-    all_essais = sorted(list(set(essais_base + essais_bdd)))
-    if "Aucun" in all_essais:
-        all_essais.remove("Aucun")
-        all_essais = ["Aucun"] + all_essais
-    options_essai = all_essais + ["➕ Autre / Nouvel essai..."]
+        essais_base = ["Aucun", "TENEUR EN EAU", "CAMPACITÉ", "ESSAI À LA PLAQUE", "ESSAI À LA PLAQUE + CAMPACITÉ", "PRELEVEMENT APRES COMPACTAGE", "PRELEVEMENT AVANT COMPACTAGE", "IDENTIFICATION DES MATERIAUX", "PRELEVEMENT"]
+        essais_bdd = sorted(list(set([str(e).strip() for e in df["ÉSSAI/ CONTRÔLE RÉALISÉE"].unique() if str(e).strip() and str(e).lower() != 'nan']))) if ("ÉSSAI/ CONTRÔLE RÉALISÉE" in df.columns and not df.empty) else []
+        all_essais = sorted(list(set(essais_base + essais_bdd)))
+        if "Aucun" in all_essais:
+            all_essais.remove("Aucun")
+            all_essais = ["Aucun"] + all_essais
+        options_essai = all_essais + ["➕ Autre / Nouvel essai..."]
 
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        date_saisie = st.date_input("🗓️ Date des Travaux", value=datetime.today(), format="DD/MM/YYYY")
+        col1, col2 = st.columns([1, 1])
         
-        # Choix ou Saisie Nature des travaux
-        nature_choisie = st.selectbox("📌 Nature des travaux", options=options_nature)
-        if nature_choisie == "➕ Autre / Nouvelle nature...":
-            nature_selectionnee = st.text_input("✍️ Saisir la nouvelle Nature :").strip()
-            info_liaison = {"procedure": "", "pieces": ""}
-        else:
-            nature_selectionnee = nature_choisie
-            info_liaison = LIAISONS.get(nature_selectionnee, {"procedure": "", "pieces": ""})
-        
-        # Choix ou Saisie Partie d'ouvrage
-        partie_choisie = st.selectbox("🧱 Partie d'ouvrage", options=options_partie)
-        if partie_choisie == "➕ Autre / Nouvelle partie...":
-            partie_ouvrage = st.text_input("✍️ Saisir la nouvelle Partie d'ouvrage :").strip()
-        else:
-            partie_ouvrage = partie_choisie
-
-        situation = st.text_input("📍 Situation / PK", placeholder="Ex: PK 1+120 AU PK 1+220")
-        
-    with col2:
-        activite = st.text_area("🚜 Activité réalisée", height=70)
-        
-        # Choix ou Saisie Essai / Contrôle
-        essai_choisi = st.selectbox("🧪 Essai / Contrôle", options=options_essai)
-        if essai_choisi == "➕ Autre / Nouvel essai...":
-            essai = st.text_input("✍️ Saisir le nouvel Essai / Contrôle :").strip()
-        else:
-            essai = "" if essai_choisi == "Aucun" else essai_choisi
-
-        procedure = st.text_input("📑 Procédure", value=info_liaison["procedure"])
-        pieces_jointes = st.text_area("📎 Pièces jointes", value=info_liaison["pieces"], height=80)
-
-    if st.button("💾 Enregistrer dans Google Sheets", type="primary", use_container_width=True):
-        if not nature_selectionnee or not partie_ouvrage:
-            st.error("⚠️ Veuillez renseigner au moins la Nature et la Partie d'ouvrage.")
-        else:
-            new_entry = {
-                "DATE": date_saisie.strftime('%d/%m/%Y'),
-                "TITRE DE LA NATURE DES TRAVAUX": nature_selectionnee,
-                COL_PARTIE: partie_ouvrage,
-                "SITUATION": situation,
-                "ACTIVITÉ RÉALISÉE": activite,
-                "ÉSSAI/ CONTRÔLE RÉALISÉE": essai,
-                "RÉFÉRENCE DE PROCÉDURE": procedure,
-                "PIÈCES JOINTES": pieces_jointes,
-                "CRÉÉ PAR": st.session_state["username"]
-            }
-            df_updated = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
-            success, msg = save_data_to_sheet(df_updated, sheet_name=chantier_actif)
-            if success:
-                st.success(msg)
-                st.rerun()
+        with col1:
+            date_saisie = st.date_input("🗓️ Date des Travaux", value=datetime.today(), format="DD/MM/YYYY")
+            
+            nature_choisie = st.selectbox("📌 Nature des travaux", options=options_nature)
+            if nature_choisie == "➕ Autre / Nouvelle nature...":
+                nature_selectionnee = st.text_input("✍️ Saisir la nouvelle Nature :").strip()
+                info_liaison = {"procedure": "", "pieces": ""}
             else:
-                st.error(msg)
+                nature_selectionnee = nature_choisie
+                info_liaison = LIAISONS.get(nature_selectionnee, {"procedure": "", "pieces": ""})
+            
+            partie_choisie = st.selectbox("🧱 Partie d'ouvrage", options=options_partie)
+            if partie_choisie == "➕ Autre / Nouvelle partie...":
+                partie_ouvrage = st.text_input("✍️ Saisir la nouvelle Partie d'ouvrage :").strip()
+            else:
+                partie_ouvrage = partie_choisie
+
+            situation = st.text_input("📍 Situation / PK", placeholder="Ex: PK 1+120 AU PK 1+220")
+            
+        with col2:
+            activite = st.text_area("🚜 Activité réalisée", height=70)
+            
+            essai_choisi = st.selectbox("🧪 Essai / Contrôle", options=options_essai)
+            if essai_choisi == "➕ Autre / Nouvel essai...":
+                essai = st.text_input("✍️ Saisir le nouvel Essai / Contrôle :").strip()
+            else:
+                essai = "" if essai_choisi == "Aucun" else essai_choisi
+
+            procedure = st.text_input("📑 Procédure", value=info_liaison["procedure"])
+            pieces_jointes = st.text_area("📎 Pièces jointes", value=info_liaison["pieces"], height=80)
+
+        if st.button("💾 Enregistrer dans Google Sheets", type="primary", use_container_width=True):
+            if not nature_selectionnee or not partie_ouvrage:
+                st.error("⚠️ Veuillez renseigner au moins la Nature et la Partie d'ouvrage.")
+            else:
+                new_entry = {
+                    "DATE": date_saisie.strftime('%d/%m/%Y'),
+                    "TITRE DE LA NATURE DES TRAVAUX": nature_selectionnee,
+                    COL_PARTIE: partie_ouvrage,
+                    "SITUATION": situation,
+                    "ACTIVITÉ RÉALISÉE": activite,
+                    "ÉSSAI/ CONTRÔLE RÉALISÉE": essai,
+                    "RÉFÉRENCE DE PROCÉDURE": procedure,
+                    "PIÈCES JOINTES": pieces_jointes,
+                    "CRÉÉ PAR": st.session_state["username"]
+                }
+                df_updated = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
+                success, msg = save_data_to_sheet(df_updated, sheet_name=chantier_actif)
+                if success:
+                    st.success(msg)
+                    st.rerun()
+                else:
+                    st.error(msg)
 
 # -------------------------------------------------------------
 # TAB 2 : REGISTRE
@@ -730,38 +705,44 @@ with tab2:
         if "Imprimer" not in df_editor.columns:
             df_editor.insert(0, "Imprimer", False)
 
+        is_lecteur = (st.session_state["role"] == "Lecteur")
+
         edited_df = st.data_editor(
             df_editor, 
             column_config={
                 "Imprimer": st.column_config.CheckboxColumn("Sélection", default=False),
                 "CRÉÉ PAR": st.column_config.TextColumn("CRÉÉ PAR", disabled=True)
             },
-            num_rows="dynamic", 
+            disabled=is_lecteur,
+            num_rows="dynamic" if not is_lecteur else "fixed", 
             height=380, 
             use_container_width=True
         )
 
         col_act1, col_act2 = st.columns([1, 1])
         with col_act1:
-            if st.button("💾 Enregistrer modifications", type="secondary", use_container_width=True):
-                try:
-                    edited_clean = edited_df.drop(columns=["Imprimer"], errors="ignore")
+            if not is_lecteur:
+                if st.button("💾 Enregistrer modifications", type="secondary", use_container_width=True):
+                    try:
+                        edited_clean = edited_df.drop(columns=["Imprimer"], errors="ignore")
 
-                    df_to_save = df.copy()
-                    df_to_save.update(edited_clean)
+                        df_to_save = df.copy()
+                        df_to_save.update(edited_clean)
 
-                    nouveaux_indexes = edited_clean.index.difference(df_to_save.index)
-                    if not nouveaux_indexes.empty:
-                        df_to_save = pd.concat([df_to_save, edited_clean.loc[nouveaux_indexes]], ignore_index=True)
+                        nouveaux_indexes = edited_clean.index.difference(df_to_save.index)
+                        if not nouveaux_indexes.empty:
+                            df_to_save = pd.concat([df_to_save, edited_clean.loc[nouveaux_indexes]], ignore_index=True)
 
-                    success, msg = save_data_to_sheet(df_to_save, sheet_name=chantier_actif)
-                    if success:
-                        st.success(msg)
-                        st.rerun()
-                    else:
-                        st.error(msg)
-                except Exception as e_save:
-                    st.error(f"❌ Erreur lors de la sauvegarde : {e_save}")
+                        success, msg = save_data_to_sheet(df_to_save, sheet_name=chantier_actif)
+                        if success:
+                            st.success(msg)
+                            st.rerun()
+                        else:
+                            st.error(msg)
+                    except Exception as e_save:
+                        st.error(f"❌ Erreur lors de la sauvegarde : {e_save}")
+            else:
+                st.info("ℹ️ Mode consultation : Modification du tableau désactivée.")
 
         with col_act2:
             lignes_selectionnees = edited_df[edited_df["Imprimer"] == True].copy()
@@ -844,12 +825,12 @@ with tab3:
             st.info("ℹ️ Aucune donnée trouvée pour la période sélectionnée.")
 
 # -------------------------------------------------------------
-# TAB 4 : ESPACE ADMINISTRATEUR
+# TAB 4 : ESPACE ADMINISTRATEUR (GESTION COMPTES & CHANTIERS)
 # -------------------------------------------------------------
 if st.session_state["role"] == "Admin":
     tab_admin = tabs[3]
     with tab_admin:
-        st.markdown("##### 👥 **Gestion des Utilisateurs**")
+        st.markdown("##### 👥 **Gestion des Utilisateurs & Droits par Chantier**")
         df_users = load_users()
 
         col_u1, col_u2 = st.columns([1, 1])
@@ -859,8 +840,12 @@ if st.session_state["role"] == "Admin":
             with st.form("form_add_user"):
                 new_username = st.text_input("Nom d'utilisateur").strip()
                 new_password = st.text_input("Mot de passe", type="password").strip()
-                new_role = st.selectbox("Rôle", options=["Utilisateur", "Admin"])
+                new_role = st.selectbox("Rôle", options=["Utilisateur", "Lecteur", "Admin"])
                 new_status = st.selectbox("Compte Actif", options=["OUI", "NON"])
+                
+                chantiers_dispos = get_sheet_names_gsheets()
+                chantiers_select = st.multiselect("🏗️ Chantiers autorisés :", options=chantiers_dispos, default=chantiers_dispos)
+                
                 btn_add_user = st.form_submit_button("Ajouter Utilisateur", type="primary", use_container_width=True)
 
                 if btn_add_user:
@@ -869,28 +854,31 @@ if st.session_state["role"] == "Admin":
                     elif new_username in df_users["username"].astype(str).values:
                         st.error("⚠️ Cet utilisateur existe déjà.")
                     else:
+                        str_chantiers = "TOUS" if new_role == "Admin" else ",".join(chantiers_select) if chantiers_select else "TOUS"
                         new_row = {
                             "username": new_username,
                             "password": hash_password(new_password),
                             "role": new_role,
-                            "actif": new_status
+                            "actif": new_status,
+                            "chantiers": str_chantiers
                         }
                         df_users_updated = pd.concat([df_users, pd.DataFrame([new_row])], ignore_index=True)
                         ok, msg = save_users(df_users_updated)
                         if ok:
-                            st.success(f"Utilisateur {new_username} créé !")
+                            st.success(f"Utilisateur {new_username} ({new_role}) créé !")
                             st.rerun()
                         else:
                             st.error(msg)
 
         with col_u2:
-            st.markdown("**📜 Utilisateurs inscrits**")
+            st.markdown("**📜 Utilisateurs inscrits & Accès**")
             users_edited = st.data_editor(
                 df_users,
                 column_config={
                     "password": st.column_config.TextColumn("Mot de passe (Hash)", disabled=True),
-                    "role": st.column_config.SelectboxColumn("Rôle", options=["Admin", "Utilisateur"], required=True),
-                    "actif": st.column_config.SelectboxColumn("Actif", options=["OUI", "NON"], required=True)
+                    "role": st.column_config.SelectboxColumn("Rôle", options=["Admin", "Utilisateur", "Lecteur"], required=True),
+                    "actif": st.column_config.SelectboxColumn("Actif", options=["OUI", "NON"], required=True),
+                    "chantiers": st.column_config.TextColumn("Chantiers (séparés par virgule)")
                 },
                 num_rows="dynamic",
                 use_container_width=True

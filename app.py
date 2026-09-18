@@ -784,6 +784,7 @@ if tab_registre:
                     essais_existants = sorted(list(set([str(e) for e in df["ÉSSAI/ CONTRÔLE RÉALISÉE"].unique() if str(e).strip() and str(e).lower() != 'nan']))) if "ÉSSAI/ CONTRÔLE RÉALISÉE" in df.columns else []
                     filtre_essai = st.multiselect("🔬 Essai / Contrôle :", options=essais_existants)
 
+                recherche_mot = st.text_input("🔍 Recherche globale par mot-clé :")
 
             st.markdown("**🔀 Trier les données du tableau :**")
             col_t1, col_t2 = st.columns([1, 1])

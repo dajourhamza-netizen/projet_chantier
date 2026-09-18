@@ -218,10 +218,35 @@ def save_users(df_users):
     except Exception as e:
         return False, f"❌ Erreur : {e}"
 
+# --- FONCTIONS DU JOURNAL D'ACCÈS (LOGS) ---
+def log_user_login(username, role):
+    try:
+        sh = get_spreadsheet()
+        try:
+            ws = sh.worksheet("Connexions")
+        except gspread.WorksheetNotFound:
+            ws = sh.add_worksheet(title="Connexions", rows=200, cols=3)
+            ws.append_row(["DATE ET HEURE", "UTILISATEUR", "RÔLE"])
+        
+        horodatage = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        ws.append_row([horodatage, username, role])
+    except Exception as e:
+        pass  # Enregistrement discret en arrière-plan
+
+def load_login_history():
+    try:
+        sh = get_spreadsheet()
+        ws = sh.worksheet("Connexions")
+        records = ws.get_all_records()
+        return pd.DataFrame(records)
+    except Exception:
+        return pd.DataFrame(columns=["DATE ET HEURE", "UTILISATEUR", "RÔLE"])
+
 def get_sheet_names_gsheets():
     try:
         sh = get_spreadsheet()
-        return [ws.title for ws in sh.worksheets() if ws.title != "Utilisateurs"]
+        onglets_exclus = ["Utilisateurs", "Connexions"]
+        return [ws.title for ws in sh.worksheets() if ws.title not in onglets_exclus]
     except Exception as e:
         st.error(f"Erreur de connexion à Google Sheets : {e}")
         return ["Chantier Principal"]
@@ -474,6 +499,10 @@ def page_connexion():
                         st.session_state["username"] = info_user["username"]
                         st.session_state["role"] = info_user["role"]
                         st.session_state["chantiers"] = str(info_user.get("chantiers", "TOUS"))
+                        
+                        # HISTORISATION DE LA CONNEXION (LOG)
+                        log_user_login(info_user["username"], info_user["role"])
+                        
                         st.success("Connexion réussie !")
                         st.rerun()
                     else:
@@ -551,7 +580,7 @@ if role_actuel == "Lecteur":
     tabs = st.tabs(["📊 **Tableau de suivi**"])
     tab_registre = tabs[0]
 elif role_actuel == "Admin":
-    tabs = st.tabs(["📝 **Saisie**", "📊 **Registre**", "📅 **DI**", "👥 **Accès**"])
+    tabs = st.tabs(["📝 **Saisie**", "📊 **Registre**", "📅 **DI**", "👥 **Accès & Logs**"])
     tab_saisie, tab_registre, tab_di, tab_admin = tabs[0], tabs[1], tabs[2], tabs[3]
 else:  # Utilisateur
     tabs = st.tabs(["📝 **Saisie**", "📊 **Registre**", "📅 **DI**"])
@@ -701,7 +730,7 @@ if tab_registre:
                 else:
                     df_filtered = df_filtered.sort_values(by=colonne_tri, ascending=est_croissant, na_position='last')
 
-            # VUE POUR LECTEUR : TABLEAU SEUL
+            # VUE POUR LECTEUR : TABLEAU SEUL EN LECTURE
             if role_actuel == "Lecteur":
                 st.dataframe(df_filtered, use_container_width=True, height=450)
             
@@ -826,7 +855,7 @@ if tab_di:
                 st.info("ℹ️ Aucune donnée trouvée pour la période sélectionnée.")
 
 # -------------------------------------------------------------
-# TAB 4 : ESPACE ADMINISTRATEUR (GESTION COMPTES & CHANTIERS)
+# TAB 4 : ESPACE ADMINISTRATEUR (COMPTES & HISTORIQUE D'ACCÈS)
 # -------------------------------------------------------------
 if tab_admin:
     with tab_admin:
@@ -906,3 +935,13 @@ if tab_admin:
                             st.error(msg)
                     else:
                         st.warning("⚠️ Entrez un mot de passe valide.")
+
+        st.markdown("---")
+        # 🕒 HISTORIQUE DES CONNEXIONS
+        st.markdown("##### 🕒 **Historique des Connexions (Qui est entré et quand)**")
+        df_logs = load_login_history()
+        if not df_logs.empty:
+            # Affichage de la connexion la plus récente en haut
+            st.dataframe(df_logs.iloc[::-1], use_container_width=True, height=280)
+        else:
+            st.info("ℹ️ Aucune connexion enregistrée pour le moment.")

@@ -235,7 +235,23 @@ def load_users():
     except Exception as e:
         st.error(f"Erreur lors du chargement des utilisateurs : {e}")
         return pd.DataFrame(columns=USER_COLUMNS)
-
+    
+def save_users(df_users):
+    try:
+        sh = get_spreadsheet()
+        try:
+            ws = sh.worksheet("Utilisateurs")
+        except gspread.WorksheetNotFound:
+            ws = sh.add_worksheet(title="Utilisateurs", rows=50, cols=10)
+        
+        ws.clear()
+        values = [df_users.columns.values.tolist()] + df_users.astype(str).values.tolist()
+        ws.update(values)
+        st.cache_data.clear() # Kymse7 l'cache bach l'application t9ra les utilisateurs jdad
+        return True, "✅ Utilisateurs mis à jour !"
+    except Exception as e:
+        return False, f"❌ Erreur : {e}"
+    
 def log_user_login(username, role):
     try:
         sh = get_spreadsheet()

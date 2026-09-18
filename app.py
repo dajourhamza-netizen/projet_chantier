@@ -750,7 +750,8 @@ if tab_registre:
 
         try:
             with st.expander("🌪️ **Filtres de recherche avancés**", expanded=False):
-                col_f1, col_f2, col_f3, col_f4 = st.columns([1, 1, 1, 1])
+                col_f1, col_f2, col_f3, col_f4, col_f5 = st.columns(5)
+                
                 with col_f1:
                     auteurs_existants = sorted(list(set([str(a) for a in df["CRÉÉ PAR"].unique() if str(a).strip() and str(a).lower() != 'nan']))) if "CRÉÉ PAR" in df.columns else []
                     filtre_auteur = st.multiselect("👤 Auteur :", options=auteurs_existants)
@@ -762,27 +763,26 @@ if tab_registre:
                 with col_f3:
                     parties_filtre = sorted(list(set([str(p) for p in df[COL_PARTIE].unique() if str(p).strip() and str(p).lower() != 'nan']))) if COL_PARTIE in df.columns else []
                     filtre_partie = st.multiselect("🧱 Partie :", options=parties_filtre)
-
+                    
                 with col_f4:
-                    # 1. On crée une copie temporaire pour filtrer selon la Partie sélectionnée
+                    # Filtre dynamique : Situation en fonction de la Partie
                     df_pour_situation = df.copy()
                     if filtre_partie:
                         df_pour_situation = df_pour_situation[df_pour_situation[COL_PARTIE].astype(str).isin(filtre_partie)]
                     
-                    # 2. On extrait les situations uniquement de cette liste filtrée
                     situations_existantes = sorted(list(set([str(s) for s in df_pour_situation["SITUATION"].unique() if str(s).strip() and str(s).lower() != 'nan']))) if "SITUATION" in df_pour_situation.columns else []
-                    
-                    # 3. On affiche le menu déroulant
                     filtre_situation = st.multiselect("📍 Situation :", options=situations_existantes)
 
-                    # Passage à 5 colonnes
-                col_f1, col_f2, col_f3, col_f4, col_f5 = st.columns(5)
-                
-                # ... (gardez votre code actuel pour col_f1, col_f2, col_f3 et col_f4) ...
-
                 with col_f5:
-                    essais_existants = sorted(list(set([str(e) for e in df["ÉSSAI/ CONTRÔLE RÉALISÉE"].unique() if str(e).strip() and str(e).lower() != 'nan']))) if "ÉSSAI/ CONTRÔLE RÉALISÉE" in df.columns else []
-                    filtre_essai = st.multiselect("🔬 Essai / Contrôle :", options=essais_existants)
+                    # ATTENTION : Le nom doit être EXACTEMENT celui de Google Sheets (attention à l'espace après le /)
+                    nom_colonne_essai = "ÉSSAI/ CONTRÔLE RÉALISÉE" 
+                    
+                    if nom_colonne_essai in df.columns:
+                        essais_existants = sorted(list(set([str(e) for e in df[nom_colonne_essai].unique() if str(e).strip() and str(e).lower() != 'nan'])))
+                        filtre_essai = st.multiselect("🔬 Essai/Contrôle :", options=essais_existants)
+                    else:
+                        filtre_essai = []
+                        st.error("⚠️ Nom de colonne introuvable")
 
                 recherche_mot = st.text_input("🔍 Recherche globale par mot-clé :")
 
@@ -812,6 +812,12 @@ if tab_registre:
 
             if filtre_partie:
                 df_filtered = df_filtered[df_filtered[COL_PARTIE].astype(str).isin(filtre_partie)]
+                
+            if filtre_situation:
+                df_filtered = df_filtered[df_filtered["SITUATION"].astype(str).isin(filtre_situation)]
+
+            if filtre_essai:
+                df_filtered = df_filtered[df_filtered[nom_colonne_essai].astype(str).isin(filtre_essai)]
 
             if recherche_mot.strip():
                 m_clean = recherche_mot.strip().lower()

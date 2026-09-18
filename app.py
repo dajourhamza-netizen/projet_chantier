@@ -236,21 +236,28 @@ def load_users():
         st.error(f"Erreur lors du chargement des utilisateurs : {e}")
         return pd.DataFrame(columns=USER_COLUMNS)
 
-def save_users(df_users):
+def log_user_login(username, role):
     try:
         sh = get_spreadsheet()
         try:
-            ws = sh.worksheet("Utilisateurs")
+            ws = sh.worksheet("Connexions")
         except gspread.WorksheetNotFound:
-            ws = sh.add_worksheet(title="Utilisateurs", rows=50, cols=10)
+            ws = sh.add_worksheet(title="Connexions", rows=200, cols=3)
+            ws.append_row(["DATE ET HEURE", "UTILISATEUR", "RÔLE"])
         
-        ws.clear()
-        values = [df_users.columns.values.tolist()] + df_users.astype(str).values.tolist()
-        ws.update(values)
-        st.cache_data.clear() # مسح التخزين المؤقت فور حفظ بيانات جديدة
-        return True, "✅ Utilisateurs mis à jour !"
-    except Exception as e:
-        return False, f"❌ Erreur : {e}"
+        horodatage = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        ws.append_row([horodatage, username, role])
+    except Exception:
+        pass
+
+def load_login_history():
+    try:
+        sh = get_spreadsheet()
+        ws = sh.worksheet("Connexions")
+        records = ws.get_all_records()
+        return pd.DataFrame(records)
+    except Exception:
+        return pd.DataFrame(columns=["DATE ET HEURE", "UTILISATEUR", "RÔLE"])
 
 @st.cache_data(ttl=60)
 def get_sheet_names_gsheets():

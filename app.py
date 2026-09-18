@@ -750,7 +750,7 @@ if tab_registre:
 
         try:
             with st.expander("🌪️ **Filtres de recherche avancés**", expanded=False):
-                col_f1, col_f2, col_f3 = st.columns([1, 1, 1])
+                col_f1, col_f2, col_f3, col_f4 = st.columns([1, 1, 1, 1])
                 with col_f1:
                     auteurs_existants = sorted(list(set([str(a) for a in df["CRÉÉ PAR"].unique() if str(a).strip() and str(a).lower() != 'nan']))) if "CRÉÉ PAR" in df.columns else []
                     filtre_auteur = st.multiselect("👤 Auteur :", options=auteurs_existants)

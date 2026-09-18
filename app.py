@@ -764,6 +764,10 @@ if tab_registre:
                     parties_filtre = sorted(list(set([str(p) for p in df[COL_PARTIE].unique() if str(p).strip() and str(p).lower() != 'nan']))) if COL_PARTIE in df.columns else []
                     filtre_partie = st.multiselect("🧱 Partie :", options=parties_filtre)
 
+                with col_f4:
+                    situations_filtre = sorted(list(set([str(s) for s in df[COL_SITUATION].unique() if str(s).strip() and str(s).lower() != 'nan']))) if COL_SITUATION in df.columns else []
+                    filtre_situation = st.multiselect("🗺️ Situation :", options=situations_filtre)
+
                 recherche_mot = st.text_input("🔍 Recherche globale par mot-clé :")
 
             st.markdown("**🔀 Trier les données du tableau :**")

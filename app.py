@@ -217,21 +217,14 @@ def get_spreadsheet():
     url = st.secrets["gsheets"]["spreadsheet_url"]
     return client.open_by_url(url)
 
+@st.cache_data(ttl=60) # A bɛ kunnafoniw mara sekɔndi 60
 def load_users():
     try:
         sh = get_spreadsheet()
         try:
             ws = sh.worksheet("Utilisateurs")
         except gspread.WorksheetNotFound:
-            ws = sh.add_worksheet(title="Utilisateurs", rows=50, cols=10)
-            admin_initial = pd.DataFrame([{
-                "username": "admin",
-                "password": hash_password("admin123"),
-                "role": "Admin",
-                "actif": "OUI",
-                "chantiers": "TOUS"
-            }])
-            ws.update([admin_initial.columns.values.tolist()] + admin_initial.astype(str).values.tolist())
+            # ... (code kɔrɔ to yen)
             return admin_initial
 
         records = ws.get_all_records()
@@ -254,34 +247,12 @@ def save_users(df_users):
         ws.clear()
         values = [df_users.columns.values.tolist()] + df_users.astype(str).values.tolist()
         ws.update(values)
+        st.cache_data.clear() # CACHE JƆSI NI KUNNAFONI KURA SƐBƐNNA
         return True, "✅ Utilisateurs mis à jour !"
     except Exception as e:
         return False, f"❌ Erreur : {e}"
 
-# --- FONCTIONS DU JOURNAL D'ACCÈS (LOGS) ---
-def log_user_login(username, role):
-    try:
-        sh = get_spreadsheet()
-        try:
-            ws = sh.worksheet("Connexions")
-        except gspread.WorksheetNotFound:
-            ws = sh.add_worksheet(title="Connexions", rows=200, cols=3)
-            ws.append_row(["DATE ET HEURE", "UTILISATEUR", "RÔLE"])
-        
-        horodatage = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        ws.append_row([horodatage, username, role])
-    except Exception:
-        pass
-
-def load_login_history():
-    try:
-        sh = get_spreadsheet()
-        ws = sh.worksheet("Connexions")
-        records = ws.get_all_records()
-        return pd.DataFrame(records)
-    except Exception:
-        return pd.DataFrame(columns=["DATE ET HEURE", "UTILISATEUR", "RÔLE"])
-
+@st.cache_data(ttl=60)
 def get_sheet_names_gsheets():
     try:
         sh = get_spreadsheet()
@@ -291,6 +262,7 @@ def get_sheet_names_gsheets():
         st.error(f"Erreur de connexion à Google Sheets : {e}")
         return ["Chantier Principal"]
 
+@st.cache_data(ttl=60)
 def load_data_from_sheet(sheet_name):
     try:
         sh = get_spreadsheet()
@@ -318,10 +290,10 @@ def save_data_to_sheet(df_to_save, sheet_name):
         ws.clear()
         values = [df_clean.columns.values.tolist()] + df_clean.astype(str).values.tolist()
         ws.update(values)
+        st.cache_data.clear() # CACHE JƆSI
         return True, "✅ Données enregistrées dans Google Sheets !"
     except Exception as e:
         return False, f"❌ Erreur d'enregistrement : {e}"
-
 # ==========================================
 # 4. FONCTIONS DE GÉNÉRATION DOCX & PDF
 # ==========================================

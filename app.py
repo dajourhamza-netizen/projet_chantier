@@ -759,6 +759,10 @@ if tab_registre:
                     natures_existantes = sorted(list(set([str(n) for n in df["TITRE DE LA NATURE DES TRAVAUX"].unique() if str(n).strip() and str(n).lower() != 'nan']))) if "TITRE DE LA NATURE DES TRAVAUX" in df.columns else []
                     filtre_nature = st.multiselect("📌 Nature :", options=natures_existantes)
 
+                with col_f3:
+                    parties_filtre = sorted(list(set([str(p) for p in df[COL_PARTIE].unique() if str(p).strip() and str(p).lower() != 'nan']))) if COL_PARTIE in df.columns else []
+                    filtre_partie = st.multiselect("🧱 Partie :", options=parties_filtre)
+                    
                 with col_f4:
                     situations_existantes = sorted(list(set([str(s) for s in df["SITUATION"].unique() if str(s).strip() and str(s).lower() != 'nan']))) if "SITUATION" in df.columns else []
                     filtre_situation = st.multiselect("📍 Situation :", options=situations_existantes)

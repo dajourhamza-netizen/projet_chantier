@@ -235,7 +235,7 @@ def load_users():
     except Exception as e:
         st.error(f"Erreur lors du chargement des utilisateurs : {e}")
         return pd.DataFrame(columns=USER_COLUMNS)
-    
+        
 def save_users(df_users):
     try:
         sh = get_spreadsheet()
@@ -251,7 +251,6 @@ def save_users(df_users):
         return True, "✅ Utilisateurs mis à jour !"
     except Exception as e:
         return False, f"❌ Erreur : {e}"
-    
 def log_user_login(username, role):
     try:
         sh = get_spreadsheet()
@@ -764,7 +763,7 @@ if tab_registre:
                     parties_filtre = sorted(list(set([str(p) for p in df[COL_PARTIE].unique() if str(p).strip() and str(p).lower() != 'nan']))) if COL_PARTIE in df.columns else []
                     filtre_partie = st.multiselect("🧱 Partie :", options=parties_filtre)
 
-                             recherche_mot = st.text_input("🔍 Recherche globale par mot-clé :")
+                recherche_mot = st.text_input("🔍 Recherche globale par mot-clé :")
 
             st.markdown("**🔀 Trier les données du tableau :**")
             col_t1, col_t2 = st.columns([1, 1])

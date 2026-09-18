@@ -270,8 +270,8 @@ def log_user_login(username, role):
         
         horodatage = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         ws.append_row([horodatage, username, role])
-    except Exception as e:
-        pass  # Enregistrement discret en arrière-plan
+    except Exception:
+        pass
 
 def load_login_history():
     try:
@@ -336,18 +336,41 @@ def text_to_richtext(text):
 
 def clean_filename(text):
     if not text: return ""
-    text = str(text)
+    text = str(text).strip()
     if text.lower().endswith('.docx'): text = text[:-5]
     text = unicodedata.normalize('NFD', text).encode('ascii', 'ignore').decode("utf-8")
     return re.sub(r'[^a-zA-Z0-9]', '', text).lower()
 
-def trouver_modele_word(nom_nature):
+def trouver_modele_word(nom_nature, nom_chantier=None):
+    if not nom_nature:
+        return None
+        
     target_clean = clean_filename(nom_nature)
+
+    # 1. Recherche dans le dossier spécifique du chantier (ex: NGE ou JET CONTRACTORS)
+    if nom_chantier and os.path.exists(DOSSIER_CHANTIER):
+        dossier_cible = None
+        for item in os.listdir(DOSSIER_CHANTIER):
+            chemin_item = os.path.join(DOSSIER_CHANTIER, item)
+            if os.path.isdir(chemin_item) and item.strip().lower() == str(nom_chantier).strip().lower():
+                dossier_cible = chemin_item
+                break
+        
+        if dossier_cible and os.path.exists(dossier_cible):
+            for root, _, files in os.walk(dossier_cible):
+                for file in files:
+                    if file.lower().endswith('.docx') and not file.startswith('~$'):
+                        if clean_filename(file) == target_clean:
+                            return os.path.join(root, file)
+
+    # 2. Recherche globale dans tout le répertoire du projet
     if os.path.exists(DOSSIER_CHANTIER):
-        for file in os.listdir(DOSSIER_CHANTIER):
-            if file.lower().endswith('.docx') and not file.startswith('~$'):
-                if clean_filename(file) == target_clean:
-                    return os.path.join(DOSSIER_CHANTIER, file)
+        for root, _, files in os.walk(DOSSIER_CHANTIER):
+            for file in files:
+                if file.lower().endswith('.docx') and not file.startswith('~$'):
+                    if clean_filename(file) == target_clean:
+                        return os.path.join(root, file)
+
     return None
 
 def construire_nom_pdf(row):
@@ -441,14 +464,35 @@ def generer_di_style_vba(chemin_modele, df_jour):
 
     return doc
 
-def generer_di_une_date(df_jour):
+def generer_di_une_date(df_jour, nom_chantier=None):
     modele_di = None
     if os.path.exists(DOSSIER_CHANTIER):
-        for file in os.listdir(DOSSIER_CHANTIER):
-            if file.lower().endswith('.docx') and not file.startswith('~$'):
-                if 'di' in file.lower() or 'demande' in file.lower():
-                    modele_di = os.path.join(DOSSIER_CHANTIER, file)
+        # 1. Chercher dans le dossier du chantier
+        if nom_chantier:
+            dossier_cible = None
+            for item in os.listdir(DOSSIER_CHANTIER):
+                chemin_item = os.path.join(DOSSIER_CHANTIER, item)
+                if os.path.isdir(chemin_item) and item.strip().lower() == str(nom_chantier).strip().lower():
+                    dossier_cible = chemin_item
                     break
+            if dossier_cible and os.path.exists(dossier_cible):
+                for root, _, files in os.walk(dossier_cible):
+                    for file in files:
+                        if file.lower().endswith('.docx') and not file.startswith('~$'):
+                            if 'di' in file.lower() or 'demande' in file.lower():
+                                modele_di = os.path.join(root, file)
+                                break
+                    if modele_di: break
+
+        # 2. Recherche globale si non trouvé
+        if not modele_di:
+            for root, _, files in os.walk(DOSSIER_CHANTIER):
+                for file in files:
+                    if file.lower().endswith('.docx') and not file.startswith('~$'):
+                        if 'di' in file.lower() or 'demande' in file.lower():
+                            modele_di = os.path.join(root, file)
+                            break
+                if modele_di: break
 
     with tempfile.TemporaryDirectory() as temp_dir:
         docx_temp_path = os.path.join(temp_dir, "di_single.docx")
@@ -486,14 +530,14 @@ def generer_di_une_date(df_jour):
 
         return docx_bytes, pdf_bytes
 
-def generer_pack_di_zip(df_filtered):
+def generer_pack_di_zip(df_filtered, nom_chantier=None):
     zip_buffer = io.BytesIO()
     dates_uniques = df_filtered["DATE"].unique()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
         for date_val in dates_uniques:
             if not date_val or str(date_val).strip() == "" or str(date_val).lower() == "nan": continue
             df_jour = df_filtered[df_filtered["DATE"] == date_val]
-            docx_b, pdf_b = generer_di_une_date(df_jour)
+            docx_b, pdf_b = generer_di_une_date(df_jour, nom_chantier)
             date_clean = str(date_val).replace('/', '-').replace('\\', '-')
             zip_file.writestr(f"DI_{date_clean}.docx", docx_b)
             zip_file.writestr(f"DI_{date_clean}.pdf", pdf_b)
@@ -540,7 +584,6 @@ def page_connexion():
                         st.session_state["role"] = info_user["role"]
                         st.session_state["chantiers"] = str(info_user.get("chantiers", "TOUS"))
                         
-                        # HISTORISATION DE LA CONNEXION (LOG)
                         log_user_login(info_user["username"], info_user["role"])
                         
                         st.success("Connexion réussie !")
@@ -705,7 +748,7 @@ if tab_saisie:
                     st.error(msg)
 
 # -------------------------------------------------------------
-# TAB 2 : REGISTRE / TABLEAU DE SUIVI (CONSULTATION VS ÉDITION)
+# TAB 2 : REGISTRE / TABLEAU DE SUIVI
 # -------------------------------------------------------------
 if tab_registre:
     with tab_registre:
@@ -770,11 +813,9 @@ if tab_registre:
                 else:
                     df_filtered = df_filtered.sort_values(by=colonne_tri, ascending=est_croissant, na_position='last')
 
-            # VUE POUR LECTEUR : TABLEAU SEUL EN LECTURE
             if role_actuel == "Lecteur":
                 st.dataframe(df_filtered, use_container_width=True, height=450)
             
-            # VUE POUR ADMIN ET UTILISATEUR : ÉDITION + GÉNÉRATION DE FICHES
             else:
                 df_editor = df_filtered.copy()
                 if "Imprimer" not in df_editor.columns:
@@ -827,7 +868,7 @@ if tab_registre:
                                 with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
                                     for idx, row in lignes_selectionnees.iterrows():
                                         nom_modele = get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE")
-                                        chemin_modele = trouver_modele_word(nom_modele)
+                                        chemin_modele = trouver_modele_word(nom_modele, chantier_actif)
                                         if chemin_modele:
                                             contexte = {
                                                 'NATURE': get_col_val(row, "TITRE DE LA NATURE DES TRAVAUX", "NATURE"),
@@ -883,7 +924,7 @@ if tab_di:
             if not df_filtered_di.empty:
                 st.dataframe(df_filtered_di.drop(columns=['DATE_DT'], errors='ignore'), use_container_width=True)
                 if st.button("📦 Générer Pack DI", type="primary", use_container_width=True):
-                    zip_data, count_dates = generer_pack_di_zip(df_filtered_di)
+                    zip_data, count_dates = generer_pack_di_zip(df_filtered_di, chantier_actif)
                     st.download_button(
                         label="⬇️ Télécharger Le Pack ZIP", 
                         data=zip_data, 
@@ -977,11 +1018,9 @@ if tab_admin:
                         st.warning("⚠️ Entrez un mot de passe valide.")
 
         st.markdown("---")
-        # 🕒 HISTORIQUE DES CONNEXIONS
         st.markdown("##### 🕒 **Historique des Connexions (Qui est entré et quand)**")
         df_logs = load_login_history()
         if not df_logs.empty:
-            # Affichage de la connexion la plus récente en haut
             st.dataframe(df_logs.iloc[::-1], use_container_width=True, height=280)
         else:
             st.info("ℹ️ Aucune connexion enregistrée pour le moment.")

@@ -217,14 +217,14 @@ def get_spreadsheet():
     url = st.secrets["gsheets"]["spreadsheet_url"]
     return client.open_by_url(url)
 
-@st.cache_data(ttl=60) # A bɛ kunnafoniw mara sekɔndi 60
+# إضافة التخزين المؤقت للاحتفاظ بالبيانات لمدة 60 ثانية
+@st.cache_data(ttl=60) 
 def load_users():
     try:
         sh = get_spreadsheet()
         try:
             ws = sh.worksheet("Utilisateurs")
         except gspread.WorksheetNotFound:
-            # ... (code kɔrɔ to yen)
             return admin_initial
 
         records = ws.get_all_records()
@@ -247,7 +247,7 @@ def save_users(df_users):
         ws.clear()
         values = [df_users.columns.values.tolist()] + df_users.astype(str).values.tolist()
         ws.update(values)
-        st.cache_data.clear() # CACHE JƆSI NI KUNNAFONI KURA SƐBƐNNA
+        st.cache_data.clear() # مسح التخزين المؤقت فور حفظ بيانات جديدة
         return True, "✅ Utilisateurs mis à jour !"
     except Exception as e:
         return False, f"❌ Erreur : {e}"
@@ -290,7 +290,7 @@ def save_data_to_sheet(df_to_save, sheet_name):
         ws.clear()
         values = [df_clean.columns.values.tolist()] + df_clean.astype(str).values.tolist()
         ws.update(values)
-        st.cache_data.clear() # CACHE JƆSI
+        st.cache_data.clear() # مسح التخزين المؤقت ليتم جلب التحديثات الجديدة
         return True, "✅ Données enregistrées dans Google Sheets !"
     except Exception as e:
         return False, f"❌ Erreur d'enregistrement : {e}"

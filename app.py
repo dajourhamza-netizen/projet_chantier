@@ -218,7 +218,14 @@ def get_spreadsheet():
     return client.open_by_url(url)
 
 # إضافة التخزين المؤقت للاحتفاظ بالبيانات لمدة 60 ثانية
-@st.cache_data(ttl=60) 
+@st.cache_data(ttl=60)
+ admin_initial = pd.DataFrame([{
+    "Nom d'utilisateur": "admin",
+    "Mot de passe": "admin",
+    "Rôle": "Admin",
+    "chantiers": "TOUS"
+}])
+
 def load_users():
     try:
         sh = get_spreadsheet()

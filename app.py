@@ -762,9 +762,17 @@ if tab_registre:
                 with col_f3:
                     parties_filtre = sorted(list(set([str(p) for p in df[COL_PARTIE].unique() if str(p).strip() and str(p).lower() != 'nan']))) if COL_PARTIE in df.columns else []
                     filtre_partie = st.multiselect("🧱 Partie :", options=parties_filtre)
-                    
+
                 with col_f4:
-                    situations_existantes = sorted(list(set([str(s) for s in df["SITUATION"].unique() if str(s).strip() and str(s).lower() != 'nan']))) if "SITUATION" in df.columns else []
+                    # 1. On crée une copie temporaire pour filtrer selon la Partie sélectionnée
+                    df_pour_situation = df.copy()
+                    if filtre_partie:
+                        df_pour_situation = df_pour_situation[df_pour_situation[COL_PARTIE].astype(str).isin(filtre_partie)]
+                    
+                    # 2. On extrait les situations uniquement de cette liste filtrée
+                    situations_existantes = sorted(list(set([str(s) for s in df_pour_situation["SITUATION"].unique() if str(s).strip() and str(s).lower() != 'nan']))) if "SITUATION" in df_pour_situation.columns else []
+                    
+                    # 3. On affiche le menu déroulant
                     filtre_situation = st.multiselect("📍 Situation :", options=situations_existantes)
 
                 recherche_mot = st.text_input("🔍 Recherche globale par mot-clé :")

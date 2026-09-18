@@ -775,7 +775,15 @@ if tab_registre:
                     # 3. On affiche le menu déroulant
                     filtre_situation = st.multiselect("📍 Situation :", options=situations_existantes)
 
-                recherche_mot = st.text_input("🔍 Recherche globale par mot-clé :")
+                    # Passage à 5 colonnes
+                col_f1, col_f2, col_f3, col_f4, col_f5 = st.columns(5)
+                
+                # ... (gardez votre code actuel pour col_f1, col_f2, col_f3 et col_f4) ...
+
+                with col_f5:
+                    essais_existants = sorted(list(set([str(e) for e in df["ÉSSAI/ CONTRÔLE RÉALISÉE"].unique() if str(e).strip() and str(e).lower() != 'nan']))) if "ÉSSAI/ CONTRÔLE RÉALISÉE" in df.columns else []
+                    filtre_essai = st.multiselect("🔬 Essai / Contrôle :", options=essais_existants)
+
 
             st.markdown("**🔀 Trier les données du tableau :**")
             col_t1, col_t2 = st.columns([1, 1])

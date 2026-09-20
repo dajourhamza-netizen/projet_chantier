@@ -116,82 +116,101 @@ LIAISONS = {
         "pieces": "* Fiche de suivi et de contrôle des remblais PST\n* PVs laboratoire"
     }
 }
-
 # ==========================================
 # 1. STYLES CSS RESPONSIVES ET TOUCH-FRIENDLY
 # ==========================================
 st.markdown("""
 <style>
-    .stApp {
-        background-image: linear-gradient(rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.88)), 
-                          url("https://i.pinimg.com/736x/3d/6b/f7/3d6bf78abc63f1c9b000d4bc5fbe7fa3.jpg");
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-        background-attachment: fixed;
-    }
-
+    /* Masquer le menu Streamlit par défaut */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
     [data-testid="stHeader"] { background-color: rgba(0, 0, 0, 0); }
 
-    .gc-header {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        color: #ffffff;
-        padding: 16px 20px;
-        border-radius: 12px;
-        border-left: 6px solid #ff6b00;
-        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.25);
-        margin-bottom: 15px;
+    /* Arrière-plan moderne en dégradé Slate/Navy */
+    .stApp {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+        color: #f8fafc;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
-    .gc-header h1 { color: #ffffff !important; font-size: 22px !important; font-weight: 800 !important; margin: 0 !important; }
-    .gc-header p { color: #94a3b8; margin: 4px 0 0 0; font-size: 13px; }
-    
+
+    /* En-tête de l'application */
+    .gc-header {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        color: #ffffff;
+        padding: 18px 24px;
+        border-radius: 14px;
+        border-left: 6px solid #ff6b00;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        margin-bottom: 20px;
+    }
+    .gc-header h1 { color: #ffffff !important; font-size: 24px !important; font-weight: 800 !important; margin: 0 !important; }
+    .gc-header p { color: #94a3b8; margin: 6px 0 0 0; font-size: 13px; }
+
+    /* Stylisation des Onglets (Tabs) */
+    button[data-baseweb="tab"] {
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        border-radius: 8px !important;
+        padding: 10px 18px !important;
+        color: #94a3b8 !important;
+        transition: all 0.2s ease;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        background-color: #ff6b00 !important;
+        color: #ffffff !important;
+    }
+
+    /* Boutons personnalisés avec effets survol */
     .stButton > button {
-        min-height: 48px !important;
+        min-height: 46px !important;
         font-size: 15px !important;
         font-weight: 700 !important;
         border-radius: 10px !important;
         width: 100% !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #ff6b00 0%, #e65c00 100%) !important;
+        color: #ffffff !important;
+        border: none !important;
+        box-shadow: 0 4px 14px rgba(255, 107, 0, 0.35);
+    }
+    .stButton > button[kind="primary"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(255, 107, 0, 0.5);
     }
 
-    .stButton > button[kind="primary"] {
-        background-color: #ff6b00 !important; 
-        color: #ffffff !important; 
-        border: none !important; 
+    /* Formulaires et Champs de saisie */
+    .stTextInput input, .stSelectbox div[data-baseweb="select"], .stTextArea textarea {
+        border-radius: 8px !important;
+        background-color: #1e293b !important;
+        color: #ffffff !important;
+        border: 1px solid #334155 !important;
     }
-    
+    .stTextInput input:focus, .stTextArea textarea:focus {
+        border-color: #ff6b00 !important;
+        box-shadow: 0 0 0 2px rgba(255, 107, 0, 0.2) !important;
+    }
+
+    /* Barre latérale (Sidebar) */
     section[data-testid="stSidebar"] { 
-        background-color: rgba(15, 23, 42, 0.98) !important; 
-        color: #ffffff !important; 
+        background-color: #0f172a !important; 
+        border-right: 1px solid #1e293b;
     }
     section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] .stMarkdown h1 { 
         color: #f1f5f9 !important; 
     }
 
+    /* Adaptation Mobile */
     @media (max-width: 768px) {
-        .block-container {
-            padding-top: 1rem !important;
-            padding-bottom: 2rem !important;
-            padding-left: 0.8rem !important;
-            padding-right: 0.8rem !important;
-        }
-
-        .gc-header { padding: 12px 14px !important; }
+        .block-container { padding: 1rem 0.5rem !important; }
+        .gc-header { padding: 14px !important; }
         .gc-header h1 { font-size: 18px !important; }
-        .gc-header p { font-size: 11px !important; }
-
-        button[data-baseweb="tab"] {
-            font-size: 13px !important;
-            padding: 8px 10px !important;
-        }
-
-        div[data-testid="stDataFrame"] {
-            overflow-x: auto !important;
-            -webkit-overflow-scrolling: touch;
-        }
+        div[data-testid="stDataFrame"] { overflow-x: auto !important; }
     }
 </style>
 """, unsafe_allow_html=True)
-
 # ==========================================
 # 2. SÉCURITÉ ET HACHAGE
 # ==========================================

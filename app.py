@@ -116,14 +116,15 @@ LIAISONS = {
         "pieces": "* Fiche de suivi et de contrôle des remblais PST\n* PVs laboratoire"
     }
 }
-
 # ==========================================
 # 1. STYLES CSS RESPONSIVES ET TOUCH-FRIENDLY
 # ==========================================
 st.markdown("""
 <style>
-    /* Masquer uniquement le footer et le menu Streamlit natif */
-    #MainMenu, footer { visibility: hidden; }
+    /* 1. MASQUER TOTALEMENT L'EN-TÊTE ET LE MENU */
+    #MainMenu, footer, header, [data-testid="stHeader"], .gc-header { 
+        display: none !important; 
+    }
 
     /* Arrière-plan principal avec photo et filtre sombre (#323328) */
     .stApp {
@@ -137,12 +138,17 @@ st.markdown("""
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    /* FORCER LA VISIBILITÉ DE TOUS LES TEXTES ET L'ESPACE UTILISATEUR */
-    .stApp p, .stApp span, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp div {
-        color: #ffffff !important;
+    /* 2. DESCENDRE L'ESPACE DE CONNEXION / BARRE LATÉRALE VERS LE BAS */
+    section[data-testid="stSidebar"] .block-container {
+        padding-top: 80px !important; /* Ajustez cette valeur pour descendre plus ou moins */
     }
 
-    /* Zone de Connexion / Barre latérale (Sidebar) */
+    /* Adjuster l'alignement haut du contenu principal */
+    .main .block-container {
+        padding-top: 40px !important;
+    }
+
+    /* Style de la Barre latérale (Sidebar) */
     section[data-testid="stSidebar"] { 
         background-color: rgba(50, 51, 40, 0.98) !important; 
         border-right: 2px solid #8C945A !important;
@@ -151,19 +157,12 @@ st.markdown("""
         color: #ffffff !important; 
     }
 
-    /* En-tête principal "Suivi Génie Civil" */
-    .gc-header {
-        background: linear-gradient(135deg, #5E614E 0%, #323328 100%) !important;
-        padding: 18px 24px !important;
-        border-radius: 12px !important;
-        border-left: 6px solid #E1FA35 !important;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
-        margin-bottom: 20px !important;
+    /* Forcer la couleur blanche sur les textes */
+    .stApp p, .stApp span, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp div {
+        color: #ffffff !important;
     }
-    .gc-header h1 { color: #E1FA35 !important; font-size: 24px !important; font-weight: 800 !important; margin: 0 !important; }
-    .gc-header p { color: #B7C752 !important; margin: 4px 0 0 0 !important; }
 
-    /* CORRECTION SUPRESSION DU TURQUOISE : Tous les champs de saisie (Date, Texte, Select) */
+    /* Champs de saisie (#5E614E) */
     input, select, textarea,
     div[data-baseweb="input"],
     div[data-baseweb="input"] > div,
@@ -176,12 +175,7 @@ st.markdown("""
         border-radius: 8px !important;
     }
 
-    /* Couleur du texte saisi dans les champs */
-    input::placeholder, textarea::placeholder {
-        color: #cbd5e1 !important;
-    }
-
-    /* Contour jaune au clic sur un champ */
+    /* Focus sur les champs */
     input:focus, div[data-baseweb="input"]:focus-within {
         border-color: #E1FA35 !important;
         box-shadow: 0 0 0 2px rgba(225, 250, 53, 0.3) !important;
@@ -205,7 +199,7 @@ st.markdown("""
         border-radius: 8px !important;
     }
 
-    /* Boutons Principaux & Bouton Déconnexion */
+    /* Boutons Principaux (#E1FA35) */
     .stButton > button {
         background-color: #E1FA35 !important;
         color: #323328 !important;

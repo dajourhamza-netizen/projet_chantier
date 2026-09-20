@@ -116,101 +116,47 @@ LIAISONS = {
         "pieces": "* Fiche de suivi et de contrôle des remblais PST\n* PVs laboratoire"
     }
 }
+
 # ==========================================
 # 1. STYLES CSS RESPONSIVES ET TOUCH-FRIENDLY
 # ==========================================
 st.markdown("""
 <style>
-    /* Masquer le menu Streamlit par défaut */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    [data-testid="stHeader"] { background-color: rgba(0, 0, 0, 0); }
+    #MainMenu, footer, header, [data-testid="stHeader"] { visibility: hidden; }
 
-    /* Arrière-plan moderne en dégradé Slate/Navy */
     .stApp {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-        color: #f8fafc;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        background-color: #f8fafc;
+        color: #0f172a;
     }
 
-    /* En-tête de l'application */
     .gc-header {
-        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-        color: #ffffff;
+        background: #ffffff;
+        color: #0f172a;
         padding: 18px 24px;
-        border-radius: 14px;
-        border-left: 6px solid #ff6b00;
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        border-radius: 12px;
+        border-left: 6px solid #2563eb; /* Bleu Corporate */
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e2e8f0;
         margin-bottom: 20px;
     }
-    .gc-header h1 { color: #ffffff !important; font-size: 24px !important; font-weight: 800 !important; margin: 0 !important; }
-    .gc-header p { color: #94a3b8; margin: 6px 0 0 0; font-size: 13px; }
+    .gc-header h1 { color: #0f172a !important; font-size: 24px !important; font-weight: 800 !important; }
+    .gc-header p { color: #64748b; margin: 4px 0 0 0; }
 
-    /* Stylisation des Onglets (Tabs) */
-    button[data-baseweb="tab"] {
-        font-size: 15px !important;
-        font-weight: 600 !important;
-        border-radius: 8px !important;
-        padding: 10px 18px !important;
-        color: #94a3b8 !important;
-        transition: all 0.2s ease;
-    }
-    button[data-baseweb="tab"][aria-selected="true"] {
-        background-color: #ff6b00 !important;
-        color: #ffffff !important;
-    }
-
-    /* Boutons personnalisés avec effets survol */
-    .stButton > button {
-        min-height: 46px !important;
-        font-size: 15px !important;
-        font-weight: 700 !important;
-        border-radius: 10px !important;
-        width: 100% !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
     .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #ff6b00 0%, #e65c00 100%) !important;
+        background-color: #2563eb !important;
         color: #ffffff !important;
-        border: none !important;
-        box-shadow: 0 4px 14px rgba(255, 107, 0, 0.35);
-    }
-    .stButton > button[kind="primary"]:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(255, 107, 0, 0.5);
-    }
-
-    /* Formulaires et Champs de saisie */
-    .stTextInput input, .stSelectbox div[data-baseweb="select"], .stTextArea textarea {
         border-radius: 8px !important;
-        background-color: #1e293b !important;
-        color: #ffffff !important;
-        border: 1px solid #334155 !important;
-    }
-    .stTextInput input:focus, .stTextArea textarea:focus {
-        border-color: #ff6b00 !important;
-        box-shadow: 0 0 0 2px rgba(255, 107, 0, 0.2) !important;
+        border: none !important;
+        font-weight: 600 !important;
     }
 
-    /* Barre latérale (Sidebar) */
-    section[data-testid="stSidebar"] { 
-        background-color: #0f172a !important; 
-        border-right: 1px solid #1e293b;
-    }
-    section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] .stMarkdown h1 { 
-        color: #f1f5f9 !important; 
-    }
-
-    /* Adaptation Mobile */
-    @media (max-width: 768px) {
-        .block-container { padding: 1rem 0.5rem !important; }
-        .gc-header { padding: 14px !important; }
-        .gc-header h1 { font-size: 18px !important; }
-        div[data-testid="stDataFrame"] { overflow-x: auto !important; }
+    section[data-testid="stSidebar"] {
+        background-color: #ffffff !important;
+        border-right: 1px solid #e2e8f0;
     }
 </style>
 """, unsafe_allow_html=True)
+
 # ==========================================
 # 2. SÉCURITÉ ET HACHAGE
 # ==========================================

@@ -121,10 +121,22 @@ LIAISONS = {
 # ==========================================
 st.markdown("""
 <style>
-    /* 1. MASQUER TOTALEMENT L'EN-TÊTE ET LE MENU */
-    #MainMenu, footer, header, [data-testid="stHeader"], .gc-header { 
-        display: none !important; 
+    /* 1. REFFICHER L'EN-TÊTE ET LE HAUT DE PAGE */
+    header, [data-testid="stHeader"] { 
+        background-color: transparent !important;
+        visibility: visible !important;
     }
+    .gc-header {
+        display: block !important;
+        background: linear-gradient(135deg, #5E614E 0%, #323328 100%) !important;
+        padding: 18px 24px !important;
+        border-radius: 12px !important;
+        border-left: 6px solid #E1FA35 !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
+        margin-bottom: 20px !important;
+    }
+    .gc-header h1 { color: #E1FA35 !important; font-size: 24px !important; font-weight: 800 !important; margin: 0 !important; }
+    .gc-header p { color: #B7C752 !important; margin: 4px 0 0 0 !important; }
 
     /* Arrière-plan principal avec photo et filtre sombre (#323328) */
     .stApp {
@@ -138,17 +150,12 @@ st.markdown("""
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    /* 2. DESCENDRE L'ESPACE DE CONNEXION / BARRE LATÉRALE VERS LE BAS */
-    section[data-testid="stSidebar"] .block-container {
-        padding-top: 300px !important; /* Ajustez cette valeur pour descendre plus ou moins */
+    /* Repositionnement du contenu principal et de la sidebar */
+    .main .block-container, section[data-testid="stSidebar"] .block-container {
+        padding-top: 2rem !important;
     }
 
-    /* Adjuster l'alignement haut du contenu principal */
-    .main .block-container {
-        padding-top: 40px !important;
-    }
-
-    /* Style de la Barre latérale (Sidebar) */
+    /* Style de la Barre latérale (Sidebar) et zone de connexion */
     section[data-testid="stSidebar"] { 
         background-color: rgba(50, 51, 40, 0.98) !important; 
         border-right: 2px solid #8C945A !important;
@@ -157,7 +164,7 @@ st.markdown("""
         color: #ffffff !important; 
     }
 
-    /* Forcer la couleur blanche sur les textes */
+    /* Lisibilité des textes */
     .stApp p, .stApp span, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp div {
         color: #ffffff !important;
     }
@@ -181,7 +188,7 @@ st.markdown("""
         box-shadow: 0 0 0 2px rgba(225, 250, 53, 0.3) !important;
     }
 
-    /* Libellés au-dessus des champs */
+    /* Libellés des champs */
     .stSelectbox label, .stTextInput label, .stTextArea label, .stDateInput label, .stMultiSelect label {
         color: #B7C752 !important;
         font-weight: 700 !important;
@@ -199,7 +206,7 @@ st.markdown("""
         border-radius: 8px !important;
     }
 
-    /* Boutons Principaux (#E1FA35) */
+    /* Boutons (#E1FA35) */
     .stButton > button {
         background-color: #E1FA35 !important;
         color: #323328 !important;

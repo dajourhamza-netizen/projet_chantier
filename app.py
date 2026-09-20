@@ -122,76 +122,138 @@ LIAISONS = {
 # ==========================================
 st.markdown("""
 <style>
+    /* Masquer les menus Streamlit par défaut */
+    #MainMenu, footer, header, [data-testid="stHeader"] { visibility: hidden; }
+
+    /* Arrière-plan principal avec photo et filtre sombre (#323328) */
     .stApp {
-        background-image: linear-gradient(rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.88)), 
+        background-image: linear-gradient(rgba(50, 51, 40, 0.92), rgba(50, 51, 40, 0.92)), 
                           url("https://i.pinimg.com/736x/3d/6b/f7/3d6bf78abc63f1c9b000d4bc5fbe7fa3.jpg");
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
         background-attachment: fixed;
+        color: #f8fafc !important;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    [data-testid="stHeader"] { background-color: rgba(0, 0, 0, 0); }
-
+    /* En-tête de l'application */
     .gc-header {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        color: #ffffff;
-        padding: 16px 20px;
+        background: linear-gradient(135deg, #5E614E 0%, #323328 100%) !important;
+        padding: 18px 24px;
         border-radius: 12px;
-        border-left: 6px solid #ff6b00;
-        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.25);
-        margin-bottom: 15px;
+        border-left: 6px solid #E1FA35 !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        margin-bottom: 20px;
     }
-    .gc-header h1 { color: #ffffff !important; font-size: 22px !important; font-weight: 800 !important; margin: 0 !important; }
-    .gc-header p { color: #94a3b8; margin: 4px 0 0 0; font-size: 13px; }
-    
-    .stButton > button {
-        min-height: 48px !important;
-        font-size: 15px !important;
-        font-weight: 700 !important;
-        border-radius: 10px !important;
-        width: 100% !important;
+    .gc-header h1 { color: #E1FA35 !important; font-size: 24px !important; font-weight: 800 !important; margin: 0 !important; }
+    .gc-header p { color: #B7C752 !important; margin: 4px 0 0 0; }
+
+    /* Textes et Titres */
+    h1, h2, h3, h4, h5, h6, label, p, span, .stMarkdown {
+        color: #f8fafc !important;
     }
 
-    .stButton > button[kind="primary"] {
-        background-color: #ff6b00 !important; 
-        color: #ffffff !important; 
-        border: none !important; 
+    /* Style des Onglets (Tabs) */
+    button[data-baseweb="tab"] {
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        border-radius: 8px !important;
+        padding: 10px 18px !important;
+        color: #B7C752 !important;
+        background-color: transparent !important;
     }
-    
+    button[data-baseweb="tab"][aria-selected="true"] {
+        background-color: #E1FA35 !important;
+        color: #323328 !important;
+        font-weight: 800 !important;
+    }
+
+    /* Champs de saisie (Inputs, Selectbox, Textarea) */
+    div[data-baseweb="input"] input,
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="base-input"],
+    textarea {
+        background-color: #5E614E !important;
+        color: #ffffff !important;
+        border: 1px solid #8C945A !important;
+        border-radius: 8px !important;
+    }
+
+    /* Focus actif sur un champ de texte */
+    div[data-baseweb="input"]:focus-within,
+    div[data-baseweb="select"]:focus-within {
+        border-color: #E1FA35 !important;
+        box-shadow: 0 0 0 2px rgba(225, 250, 53, 0.3) !important;
+    }
+
+    /* Libellés au-dessus des champs */
+    .stSelectbox label, .stTextInput label, .stTextArea label, .stMultiSelect label {
+        color: #B7C752 !important;
+        font-weight: 600 !important;
+    }
+
+    /* Étiquettes sélectionnées (Tags du MultiSelect) */
+    span[data-baseweb="tag"] {
+        background-color: #8C945A !important;
+        color: #ffffff !important;
+        border-radius: 6px !important;
+    }
+
+    /* Boutons Principaux (#E1FA35) */
+    .stButton > button[kind="primary"] {
+        background-color: #E1FA35 !important;
+        color: #323328 !important;
+        border: none !important;
+        border-radius: 8px !important;
+        font-weight: 800 !important;
+        min-height: 48px !important;
+        box-shadow: 0 4px 12px rgba(225, 250, 53, 0.25) !important;
+        transition: all 0.2s ease-in-out;
+    }
+    .stButton > button[kind="primary"]:hover {
+        background-color: #B7C752 !important;
+        transform: translateY(-1px);
+    }
+
+    /* Boutons Secondaires */
+    .stButton > button:not([kind="primary"]) {
+        background-color: #5E614E !important;
+        color: #ffffff !important;
+        border: 1px solid #8C945A !important;
+        border-radius: 8px !important;
+        min-height: 44px !important;
+    }
+    .stButton > button:not([kind="primary"]):hover {
+        border-color: #E1FA35 !important;
+        color: #E1FA35 !important;
+    }
+
+    /* Tableaux de données */
+    div[data-testid="stDataFrame"], div[data-testid="stDataEditor"] {
+        background-color: #5E614E !important;
+        border-radius: 10px !important;
+        border: 1px solid #8C945A !important;
+        padding: 4px;
+    }
+
+    /* Barre latérale (Sidebar) */
     section[data-testid="stSidebar"] { 
-        background-color: rgba(15, 23, 42, 0.98) !important; 
-        color: #ffffff !important; 
+        background-color: rgba(50, 51, 40, 0.98) !important; 
+        border-right: 1px solid #5E614E !important;
     }
     section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] .stMarkdown h1 { 
-        color: #f1f5f9 !important; 
+        color: #E1FA35 !important; 
     }
 
+    /* Adaptation Mobile */
     @media (max-width: 768px) {
-        .block-container {
-            padding-top: 1rem !important;
-            padding-bottom: 2rem !important;
-            padding-left: 0.8rem !important;
-            padding-right: 0.8rem !important;
-        }
-
+        .block-container { padding: 1rem 0.5rem !important; }
         .gc-header { padding: 12px 14px !important; }
         .gc-header h1 { font-size: 18px !important; }
-        .gc-header p { font-size: 11px !important; }
-
-        button[data-baseweb="tab"] {
-            font-size: 13px !important;
-            padding: 8px 10px !important;
-        }
-
-        div[data-testid="stDataFrame"] {
-            overflow-x: auto !important;
-            -webkit-overflow-scrolling: touch;
-        }
     }
 </style>
 """, unsafe_allow_html=True)
-
 # ==========================================
 # 2. SÉCURITÉ ET HACHAGE
 # ==========================================

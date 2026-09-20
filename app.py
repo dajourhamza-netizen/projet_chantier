@@ -140,7 +140,7 @@ st.markdown("""
 
     /* 2. DESCENDRE L'ESPACE DE CONNEXION / BARRE LATÉRALE VERS LE BAS */
     section[data-testid="stSidebar"] .block-container {
-        padding-top: 80px !important; /* Ajustez cette valeur pour descendre plus ou moins */
+        padding-top: 120px !important; /* Ajustez cette valeur pour descendre plus ou moins */
     }
 
     /* Adjuster l'alignement haut du contenu principal */

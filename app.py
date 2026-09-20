@@ -122,44 +122,79 @@ LIAISONS = {
 # ==========================================
 st.markdown("""
 <style>
-    /* Masquer les menus Streamlit par défaut */
-    #MainMenu, footer, header, [data-testid="stHeader"] { visibility: hidden; }
+    /* Masquer uniquement le footer et le menu Streamlit natif */
+    #MainMenu, footer { visibility: hidden; }
 
     /* Arrière-plan principal avec photo et filtre sombre (#323328) */
     .stApp {
         background-image: linear-gradient(rgba(50, 51, 40, 0.92), rgba(50, 51, 40, 0.92)), 
-                          url("https://i.pinimg.com/736x/3d/6b/f7/3d6bf78abc63f1c9b000d4bc5fbe7fa3.jpg");
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-        background-attachment: fixed;
-        color: #f8fafc !important;
+                          url("https://i.pinimg.com/736x/3d/6b/f7/3d6bf78abc63f1c9b000d4bc5fbe7fa3.jpg") !important;
+        background-size: cover !important;
+        background-position: center !important;
+        background-repeat: no-repeat !important;
+        background-attachment: fixed !important;
+        color: #ffffff !important;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    /* En-tête de l'application */
+    /* FORCER LA VISIBILITÉ DE TOUS LES TEXTES ET L'ESPACE UTILISATEUR */
+    .stApp p, .stApp span, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp div {
+        color: #ffffff !important;
+    }
+
+    /* Zone de Connexion / Barre latérale (Sidebar) */
+    section[data-testid="stSidebar"] { 
+        background-color: rgba(50, 51, 40, 0.98) !important; 
+        border-right: 2px solid #8C945A !important;
+    }
+    section[data-testid="stSidebar"] * { 
+        color: #ffffff !important; 
+    }
+
+    /* En-tête principal "Suivi Génie Civil" */
     .gc-header {
         background: linear-gradient(135deg, #5E614E 0%, #323328 100%) !important;
-        padding: 18px 24px;
-        border-radius: 12px;
+        padding: 18px 24px !important;
+        border-radius: 12px !important;
         border-left: 6px solid #E1FA35 !important;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-        margin-bottom: 20px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
+        margin-bottom: 20px !important;
     }
     .gc-header h1 { color: #E1FA35 !important; font-size: 24px !important; font-weight: 800 !important; margin: 0 !important; }
-    .gc-header p { color: #B7C752 !important; margin: 4px 0 0 0; }
+    .gc-header p { color: #B7C752 !important; margin: 4px 0 0 0 !important; }
 
-    /* Textes et Titres */
-    h1, h2, h3, h4, h5, h6, label, p, span, .stMarkdown {
-        color: #f8fafc !important;
+    /* CORRECTION SUPRESSION DU TURQUOISE : Tous les champs de saisie (Date, Texte, Select) */
+    input, select, textarea,
+    div[data-baseweb="input"],
+    div[data-baseweb="input"] > div,
+    div[data-baseweb="select"] > div,
+    div[data-baseweb="base-input"],
+    .stDateInput div[data-baseweb="input"] {
+        background-color: #5E614E !important;
+        color: #ffffff !important;
+        border: 1px solid #8C945A !important;
+        border-radius: 8px !important;
     }
 
-    /* Style des Onglets (Tabs) */
+    /* Couleur du texte saisi dans les champs */
+    input::placeholder, textarea::placeholder {
+        color: #cbd5e1 !important;
+    }
+
+    /* Contour jaune au clic sur un champ */
+    input:focus, div[data-baseweb="input"]:focus-within {
+        border-color: #E1FA35 !important;
+        box-shadow: 0 0 0 2px rgba(225, 250, 53, 0.3) !important;
+    }
+
+    /* Libellés au-dessus des champs */
+    .stSelectbox label, .stTextInput label, .stTextArea label, .stDateInput label, .stMultiSelect label {
+        color: #B7C752 !important;
+        font-weight: 700 !important;
+    }
+
+    /* Onglets (Tabs) */
     button[data-baseweb="tab"] {
-        font-size: 15px !important;
-        font-weight: 600 !important;
-        border-radius: 8px !important;
-        padding: 10px 18px !important;
         color: #B7C752 !important;
         background-color: transparent !important;
     }
@@ -167,66 +202,22 @@ st.markdown("""
         background-color: #E1FA35 !important;
         color: #323328 !important;
         font-weight: 800 !important;
-    }
-
-    /* Champs de saisie (Inputs, Selectbox, Textarea) */
-    div[data-baseweb="input"] input,
-    div[data-baseweb="select"] > div,
-    div[data-baseweb="base-input"],
-    textarea {
-        background-color: #5E614E !important;
-        color: #ffffff !important;
-        border: 1px solid #8C945A !important;
         border-radius: 8px !important;
     }
 
-    /* Focus actif sur un champ de texte */
-    div[data-baseweb="input"]:focus-within,
-    div[data-baseweb="select"]:focus-within {
-        border-color: #E1FA35 !important;
-        box-shadow: 0 0 0 2px rgba(225, 250, 53, 0.3) !important;
-    }
-
-    /* Libellés au-dessus des champs */
-    .stSelectbox label, .stTextInput label, .stTextArea label, .stMultiSelect label {
-        color: #B7C752 !important;
-        font-weight: 600 !important;
-    }
-
-    /* Étiquettes sélectionnées (Tags du MultiSelect) */
-    span[data-baseweb="tag"] {
-        background-color: #8C945A !important;
-        color: #ffffff !important;
-        border-radius: 6px !important;
-    }
-
-    /* Boutons Principaux (#E1FA35) */
-    .stButton > button[kind="primary"] {
+    /* Boutons Principaux & Bouton Déconnexion */
+    .stButton > button {
         background-color: #E1FA35 !important;
         color: #323328 !important;
         border: none !important;
         border-radius: 8px !important;
         font-weight: 800 !important;
-        min-height: 48px !important;
-        box-shadow: 0 4px 12px rgba(225, 250, 53, 0.25) !important;
-        transition: all 0.2s ease-in-out;
-    }
-    .stButton > button[kind="primary"]:hover {
-        background-color: #B7C752 !important;
-        transform: translateY(-1px);
-    }
-
-    /* Boutons Secondaires */
-    .stButton > button:not([kind="primary"]) {
-        background-color: #5E614E !important;
-        color: #ffffff !important;
-        border: 1px solid #8C945A !important;
-        border-radius: 8px !important;
         min-height: 44px !important;
+        transition: all 0.2s ease-in-out !important;
     }
-    .stButton > button:not([kind="primary"]):hover {
-        border-color: #E1FA35 !important;
-        color: #E1FA35 !important;
+    .stButton > button:hover {
+        background-color: #B7C752 !important;
+        color: #323328 !important;
     }
 
     /* Tableaux de données */
@@ -234,23 +225,6 @@ st.markdown("""
         background-color: #5E614E !important;
         border-radius: 10px !important;
         border: 1px solid #8C945A !important;
-        padding: 4px;
-    }
-
-    /* Barre latérale (Sidebar) */
-    section[data-testid="stSidebar"] { 
-        background-color: rgba(50, 51, 40, 0.98) !important; 
-        border-right: 1px solid #5E614E !important;
-    }
-    section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] .stMarkdown h1 { 
-        color: #E1FA35 !important; 
-    }
-
-    /* Adaptation Mobile */
-    @media (max-width: 768px) {
-        .block-container { padding: 1rem 0.5rem !important; }
-        .gc-header { padding: 12px 14px !important; }
-        .gc-header h1 { font-size: 18px !important; }
     }
 </style>
 """, unsafe_allow_html=True)

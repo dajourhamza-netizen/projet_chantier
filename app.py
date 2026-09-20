@@ -21,12 +21,28 @@ from docxtpl import DocxTemplate, RichText
 # 0. CONFIGURATION ET CONSTANTES GLOBALES
 # ==========================================
 st.set_page_config(
-    page_title="Suivi Chantier - Génie Civil",
+    page_title="Gestion des Chantiers",
     page_icon="🏗️",
-    layout="wide",
-    initial_sidebar_state="collapsed"
+    layout="wide"
 )
 
+# ---> ZID L'CODE CSS HNA <---
+hide_streamlit_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            
+            /* T9ad les boutons */
+            .stButton>button {
+                border-radius: 20px;
+                box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+            }
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+# ... hna kykml l'code dyalk l9dim (load_users, etc.) ...
 DOSSIER_CHANTIER = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
 COL_PARTIE = "PARTIE D'OUVRAGE"
 

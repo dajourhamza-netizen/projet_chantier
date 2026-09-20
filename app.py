@@ -26,23 +26,93 @@ st.set_page_config(
     layout="wide"
 )
 
-# ---> ZID L'CODE CSS HNA <---
-hide_streamlit_style = """
-            <style>
-            #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            header {visibility: hidden;}
-            
-            /* T9ad les boutons */
-            .stButton>button {
-                border-radius: 20px;
-                box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
-            }
-            </style>
-            """
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+# ==========================================
+# 1. STYLES CSS RESPONSIVES ET TOUCH-FRIENDLY
+# ==========================================
+st.markdown("""
+<style>
+    /* Masquer le menu Streamlit par défaut */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    [data-testid="stHeader"] { background-color: rgba(0, 0, 0, 0); }
 
-# ... hna kykml l'code dyalk l9dim (load_users, etc.) ...
+    /* Arrière-plan principal */
+    .stApp {
+        background-image: linear-gradient(rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.88)), 
+                          url("https://i.pinimg.com/736x/3d/6b/f7/3d6bf78abc63f1c9b000d4bc5fbe7fa3.jpg");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }
+
+    /* En-tête de l'application */
+    .gc-header {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        color: #ffffff;
+        padding: 16px 20px;
+        border-radius: 12px;
+        border-left: 6px solid #ff6b00;
+        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.25);
+        margin-bottom: 15px;
+    }
+    .gc-header h1 { color: #ffffff !important; font-size: 22px !important; font-weight: 800 !important; margin: 0 !important; }
+    .gc-header p { color: #94a3b8; margin: 4px 0 0 0; font-size: 13px; }
+    
+    /* Boutons personnalisés */
+    .stButton > button {
+        min-height: 48px !important;
+        font-size: 15px !important;
+        font-weight: 700 !important;
+        border-radius: 12px !important;
+        width: 100% !important;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        transition: all 0.3s ease;
+    }
+
+    .stButton > button[kind="primary"] {
+        background-color: #ff6b00 !important; 
+        color: #ffffff !important; 
+        border: none !important; 
+    }
+    
+    /* Barre latérale (Sidebar) */
+    section[data-testid="stSidebar"] { 
+        background-color: rgba(15, 23, 42, 0.98) !important; 
+        color: #ffffff !important; 
+    }
+    section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] .stMarkdown h1 { 
+        color: #f1f5f9 !important; 
+    }
+
+    /* Adaptation Mobile (Responsive) */
+    @media (max-width: 768px) {
+        .block-container {
+            padding-top: 1rem !important;
+            padding-bottom: 2rem !important;
+            padding-left: 0.8rem !important;
+            padding-right: 0.8rem !important;
+        }
+
+        .gc-header { padding: 12px 14px !important; }
+        .gc-header h1 { font-size: 18px !important; }
+        .gc-header p { font-size: 11px !important; }
+
+        button[data-baseweb="tab"] {
+            font-size: 13px !important;
+            padding: 8px 10px !important;
+        }
+
+        div[data-testid="stDataFrame"] {
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+        }
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Variables de structure
 DOSSIER_CHANTIER = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
 COL_PARTIE = "PARTIE D'OUVRAGE"
 
@@ -134,81 +204,6 @@ LIAISONS = {
 }
 
 # ==========================================
-# 1. STYLES CSS RESPONSIVES ET TOUCH-FRIENDLY
-# ==========================================
-st.markdown("""
-<style>
-    .stApp {
-        background-image: linear-gradient(rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.88)), 
-                          url("https://i.pinimg.com/736x/3d/6b/f7/3d6bf78abc63f1c9b000d4bc5fbe7fa3.jpg");
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-        background-attachment: fixed;
-    }
-
-    [data-testid="stHeader"] { background-color: rgba(0, 0, 0, 0); }
-
-    .gc-header {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        color: #ffffff;
-        padding: 16px 20px;
-        border-radius: 12px;
-        border-left: 6px solid #ff6b00;
-        box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.25);
-        margin-bottom: 15px;
-    }
-    .gc-header h1 { color: #ffffff !important; font-size: 22px !important; font-weight: 800 !important; margin: 0 !important; }
-    .gc-header p { color: #94a3b8; margin: 4px 0 0 0; font-size: 13px; }
-    
-    .stButton > button {
-        min-height: 48px !important;
-        font-size: 15px !important;
-        font-weight: 700 !important;
-        border-radius: 10px !important;
-        width: 100% !important;
-    }
-
-    .stButton > button[kind="primary"] {
-        background-color: #ff6b00 !important; 
-        color: #ffffff !important; 
-        border: none !important; 
-    }
-    
-    section[data-testid="stSidebar"] { 
-        background-color: rgba(15, 23, 42, 0.98) !important; 
-        color: #ffffff !important; 
-    }
-    section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] .stMarkdown h1 { 
-        color: #f1f5f9 !important; 
-    }
-
-    @media (max-width: 768px) {
-        .block-container {
-            padding-top: 1rem !important;
-            padding-bottom: 2rem !important;
-            padding-left: 0.8rem !important;
-            padding-right: 0.8rem !important;
-        }
-
-        .gc-header { padding: 12px 14px !important; }
-        .gc-header h1 { font-size: 18px !important; }
-        .gc-header p { font-size: 11px !important; }
-
-        button[data-baseweb="tab"] {
-            font-size: 13px !important;
-            padding: 8px 10px !important;
-        }
-
-        div[data-testid="stDataFrame"] {
-            overflow-x: auto !important;
-            -webkit-overflow-scrolling: touch;
-        }
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# ==========================================
 # 2. SÉCURITÉ ET HACHAGE
 # ==========================================
 def hash_password(password):
@@ -233,13 +228,15 @@ def get_spreadsheet():
     client = get_gsheets_client()
     url = st.secrets["gsheets"]["spreadsheet_url"]
     return client.open_by_url(url)
+
 admin_initial = pd.DataFrame([{
-    "Nom d'utilisateur": "admin",
-    "Mot de passe": "admin",
-    "Rôle": "Admin",
+    "username": "admin",
+    "password": hash_password("admin"),
+    "role": "Admin",
+    "actif": "OUI",
     "chantiers": "TOUS"
 }])
-# إضافة التخزين المؤقت للاحتفاظ بالبيانات لمدة 60 ثانية
+
 @st.cache_data(ttl=60) 
 def load_users():
     try:
@@ -269,7 +266,7 @@ def save_users(df_users):
         ws.clear()
         values = [df_users.columns.values.tolist()] + df_users.astype(str).values.tolist()
         ws.update(values)
-        st.cache_data.clear() # Kymse7 l'cache bach l'application t9ra les utilisateurs jdad
+        st.cache_data.clear()
         return True, "✅ Utilisateurs mis à jour !"
     except Exception as e:
         return False, f"❌ Erreur : {e}"
@@ -283,7 +280,6 @@ def log_user_login(username, role):
             ws = sh.add_worksheet(title="Connexions", rows=200, cols=3)
             ws.append_row(["DATE ET HEURE", "UTILISATEUR", "RÔLE"])
         
-        # Récupération de l'heure avec le fuseau horaire exact du Maroc
         tz_maroc = pytz.timezone('Africa/Casablanca')
         horodatage = datetime.now(tz_maroc).strftime("%d/%m/%Y %H:%M:%S")
         
@@ -338,10 +334,11 @@ def save_data_to_sheet(df_to_save, sheet_name):
         ws.clear()
         values = [df_clean.columns.values.tolist()] + df_clean.astype(str).values.tolist()
         ws.update(values)
-        st.cache_data.clear() # مسح التخزين المؤقت ليتم جلب التحديثات الجديدة
+        st.cache_data.clear()
         return True, "✅ Données enregistrées dans Google Sheets !"
     except Exception as e:
         return False, f"❌ Erreur d'enregistrement : {e}"
+
 # ==========================================
 # 4. FONCTIONS DE GÉNÉRATION DOCX & PDF
 # ==========================================
@@ -367,7 +364,6 @@ def trouver_modele_word(nom_nature, nom_chantier=None):
         
     target_clean = clean_filename(nom_nature)
 
-    # 1. Recherche dans le dossier spécifique du chantier (ex: NGE ou JET CONTRACTORS)
     if nom_chantier and os.path.exists(DOSSIER_CHANTIER):
         dossier_cible = None
         for item in os.listdir(DOSSIER_CHANTIER):
@@ -383,7 +379,6 @@ def trouver_modele_word(nom_nature, nom_chantier=None):
                         if clean_filename(file) == target_clean:
                             return os.path.join(root, file)
 
-    # 2. Recherche globale dans tout le répertoire du projet
     if os.path.exists(DOSSIER_CHANTIER):
         for root, _, files in os.walk(DOSSIER_CHANTIER):
             for file in files:
@@ -487,7 +482,6 @@ def generer_di_style_vba(chemin_modele, df_jour):
 def generer_di_une_date(df_jour, nom_chantier=None):
     modele_di = None
     if os.path.exists(DOSSIER_CHANTIER):
-        # 1. Chercher dans le dossier du chantier
         if nom_chantier:
             dossier_cible = None
             for item in os.listdir(DOSSIER_CHANTIER):
@@ -504,7 +498,6 @@ def generer_di_une_date(df_jour, nom_chantier=None):
                                 break
                     if modele_di: break
 
-        # 2. Recherche globale si non trouvé
         if not modele_di:
             for root, _, files in os.walk(DOSSIER_CHANTIER):
                 for file in files:
@@ -605,7 +598,6 @@ def page_connexion():
                         st.session_state["chantiers"] = str(info_user.get("chantiers", "TOUS"))
                         
                         log_user_login(info_user["username"], info_user["role"])
-                        
                         st.success("Connexion réussie !")
                         st.rerun()
                     else:
@@ -670,7 +662,7 @@ df = load_data_from_sheet(chantier_actif)
 # ==========================================
 st.markdown(f"""
 <div class="gc-header">
-    <h1>🛣️ Suivi Génie Civil</h1>
+    <h1>流域 Suivi Génie Civil</h1>
     <p>Projet : <b>{chantier_actif}</b></p>
 </div>
 """, unsafe_allow_html=True)
@@ -791,7 +783,6 @@ if tab_registre:
                     filtre_partie = st.multiselect("🧱 Partie :", options=parties_filtre)
                     
                 with col_f4:
-                    # Filtre dynamique : Situation en fonction de la Partie
                     df_pour_situation = df.copy()
                     if filtre_partie:
                         df_pour_situation = df_pour_situation[df_pour_situation[COL_PARTIE].astype(str).isin(filtre_partie)]
@@ -800,15 +791,12 @@ if tab_registre:
                     filtre_situation = st.multiselect("📍 Situation :", options=situations_existantes)
 
                 with col_f5:
-                    # ATTENTION : Le nom doit être EXACTEMENT celui de Google Sheets (attention à l'espace après le /)
                     nom_colonne_essai = "ÉSSAI/ CONTRÔLE RÉALISÉE" 
-                    
                     if nom_colonne_essai in df.columns:
                         essais_existants = sorted(list(set([str(e) for e in df[nom_colonne_essai].unique() if str(e).strip() and str(e).lower() != 'nan'])))
                         filtre_essai = st.multiselect("🔬 Essai/Contrôle :", options=essais_existants)
                     else:
                         filtre_essai = []
-                        st.error("⚠️ Nom de colonne introuvable")
 
                 recherche_mot = st.text_input("🔍 Recherche globale par mot-clé :")
 
